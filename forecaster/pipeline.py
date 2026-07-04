@@ -11,7 +11,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import date, timedelta
 from typing import Optional
 
-from forecaster.db import db_cursor, update_forecast_columns
+from forecaster.db import db_cursor, portfolio_db_cursor, update_forecast_columns
 
 logger = logging.getLogger(__name__)
 
@@ -181,7 +181,7 @@ class ForecastPipeline:
             return float(row[0]) if row else None
 
     def _get_thesis(self, symbol: str) -> str:
-        with db_cursor() as cur:
+        with portfolio_db_cursor() as cur:
             cur.execute(
                 "SELECT investment_thesis FROM positions WHERE symbol = ?",
                 symbol,
