@@ -28,13 +28,13 @@ class PrimarySourceAgent(BaseAgent):
                 ),
             }
         ]
-        result = self.call(messages, system=system_prompt, max_tokens=1024)
+        result = self.call(messages, system=system_prompt, max_tokens=1536)
         self.log_call(result, forecast_id=forecast_id, macro_state_id=macro_state_id)
         update_forecast_columns(
             forecast_id,
             primary_signal=(result.output.get("net_assessment") or "")[:200],
             primary_confidence=result.output.get("confidence"),
-            primary_rationale=(result.output.get("rationale") or "")[:1000],
+            primary_rationale=result.output.get("rationale"),
             primary_model=self.model,
             primary_prompt_version=result.prompt_version_id,
         )
