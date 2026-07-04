@@ -31,6 +31,10 @@ Write-Host ""
 $TOKEN = Read-Host "Paste registration token"
 if (-not $TOKEN) { Write-Error "Token cannot be empty."; exit 1 }
 
+# Required for the runner service to execute CI PowerShell scripts
+Write-Host "Setting PowerShell execution policy..." -ForegroundColor Cyan
+Set-ExecutionPolicy RemoteSigned -Scope LocalMachine -Force
+
 # Fetch latest runner version from GitHub API
 Write-Host ""
 Write-Host "Fetching latest runner version..." -ForegroundColor Cyan
