@@ -19,6 +19,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
       - name: Run migrations
         run: |
           for f in $(ls migrations/*.sql 2>/dev/null | sort); do
@@ -27,8 +30,4 @@ jobs:
           done
 
       - name: Run tests
-        run: |
-          # TODO: replace with your test command once the stack is chosen
-          # Python:  python -m pytest
-          # Node:    npm test
-          echo "No tests configured yet — add your test command here"
+        run: python -m pytest
