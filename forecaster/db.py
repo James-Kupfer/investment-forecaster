@@ -1,6 +1,5 @@
 import os
 from contextlib import contextmanager
-
 import pyodbc
 from dotenv import load_dotenv
 
@@ -29,3 +28,15 @@ def db_cursor():
         raise
     finally:
         conn.close()
+
+
+def update_forecast_columns(forecast_id: int, **kwargs) -> None:
+    """UPDATE forecasts SET col=val, ... WHERE id=forecast_id."""
+    if not kwargs:
+        return
+    # Drop None-valued keys only when explicitly passed as sentinel; keep them
+    # so agents can NULL-out a column intentionally.
+    cols = ", ".join(f"{k} = ?" for k in kwargs)
+    values = list(kwargs.values()) + [forecast_id]
+    with db_cursor() as cur:
+        cur.execute(f"UPDATE forecasts SET {cols} WHERE id = ?", tuple(values))
