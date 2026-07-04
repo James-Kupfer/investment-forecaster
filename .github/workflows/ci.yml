@@ -29,5 +29,8 @@ jobs:
       - name: Run migrations
         run: python scripts/run_migrations.py
 
+      - name: Seed prompt registry
+        run: python scripts/seed_prompt_registry.py
+
       - name: Run tests
         run: python -m pytest
