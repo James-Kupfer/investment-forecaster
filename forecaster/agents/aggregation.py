@@ -30,7 +30,7 @@ class AggregationAgent(BaseAgent):
                 ),
             }
         ]
-        result = self.call(messages, system=system_prompt, max_tokens=1536)
+        result = self.call(messages, system=system_prompt, max_tokens=2048)
         self.log_call(result, forecast_id=forecast_id, macro_state_id=macro_state_id)
         invq1 = result.output.get("upside_probability")
         invq2 = result.output.get("downside_probability")
@@ -38,6 +38,9 @@ class AggregationAgent(BaseAgent):
             result.output.get("asymmetry_ratio")
             or (round(invq1 / invq2, 4) if invq1 and invq2 and invq2 > 0 else None)
         )
+        # Derive downside from asymmetry_ratio when model omits downside_probability.
+        if not invq2 and invq1 and computed_asymmetry and computed_asymmetry > 0:
+            invq2 = round(invq1 / computed_asymmetry, 4)
         update_forecast_columns(
             forecast_id,
             invq1_p=invq1,

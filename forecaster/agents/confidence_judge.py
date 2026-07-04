@@ -30,12 +30,13 @@ class ConfidenceJudgeAgent(BaseAgent):
                 ),
             }
         ]
-        result = self.call(messages, system=system_prompt, max_tokens=1024)
+        result = self.call(messages, system=system_prompt, max_tokens=1536)
         self.log_call(result, forecast_id=forecast_id, macro_state_id=macro_state_id)
         update_forecast_columns(
             forecast_id,
+            invq3_p=result.output.get("final_probability"),
             sizing_haircut=result.output.get("sizing_haircut"),
-            confidence_rationale=(result.output.get("calibration_notes") or "")[:1000],
+            confidence_rationale=result.output.get("calibration_notes"),
             confidence_confidence=result.output.get("confidence"),
             confidence_judge_model=self.model,
             confidence_prompt_version=result.prompt_version_id,
