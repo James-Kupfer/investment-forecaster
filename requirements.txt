@@ -1,1 +1,8 @@
+anthropic>=0.40.0
+pyodbc
+python-dotenv
+pandas
 pytest
+# TA-Lib requires the C library pre-installed.
+# Windows wheel: https://github.com/cgohlke/talib-build/releases
+# ta-lib

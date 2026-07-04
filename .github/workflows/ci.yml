@@ -8,12 +8,16 @@ on:
 
 jobs:
   migrate-and-test:
-    # Runs on your desktop machine where the SQLite DB lives.
+    # Runs on your desktop where SQL Server DMS lives.
     # One-time setup: Settings → Actions → Runners → New self-hosted runner.
+    # Only secret needed: ANTHROPIC_API_KEY
     runs-on: self-hosted
 
     env:
-      DB_PATH: ${{ secrets.DB_PATH }}
+      DB_SERVER: James-desktop\sqlexpress
+      DB_NAME: DMS
+      DB_DRIVER: ODBC Driver 17 for SQL Server
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 
     steps:
       - name: Checkout
@@ -23,11 +27,7 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Run migrations
-        run: |
-          for f in $(ls migrations/*.sql 2>/dev/null | sort); do
-            echo "Applying $f"
-            sqlite3 "$DB_PATH" < "$f"
-          done
+        run: python scripts/run_migrations.py
 
       - name: Run tests
         run: python -m pytest
