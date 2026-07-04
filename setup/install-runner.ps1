@@ -67,6 +67,10 @@ Write-Host "Configuring runner..." -ForegroundColor Cyan
 .\config.cmd --url $REPO_URL --token $TOKEN --name $RUNNER_NAME --unattended --replace
 if ($LASTEXITCODE -ne 0) { Write-Error "config.cmd failed (exit $LASTEXITCODE)."; exit $LASTEXITCODE }
 
+# Allow scripts to run (required for GitHub Actions runner steps)
+Write-Host "Setting PowerShell execution policy to RemoteSigned..." -ForegroundColor Cyan
+Set-ExecutionPolicy RemoteSigned -Scope LocalMachine -Force
+
 # Install and start as Windows service
 Write-Host "Installing Windows service..." -ForegroundColor Cyan
 .\svc.sh install

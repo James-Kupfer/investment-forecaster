@@ -13,6 +13,10 @@ jobs:
     # Only secret needed: ANTHROPIC_API_KEY
     runs-on: self-hosted
 
+    defaults:
+      run:
+        shell: cmd
+
     env:
       DB_SERVER: James-desktop\sqlexpress
       DB_NAME: DMS
