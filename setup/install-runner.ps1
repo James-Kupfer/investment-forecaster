@@ -66,10 +66,20 @@ Write-Host "Configuring runner..." -ForegroundColor Cyan
 & (Join-Path $RUNNER_DIR "config.cmd") --url $REPO_URL --token $TOKEN --name $RUNNER_NAME --unattended --replace
 if ($LASTEXITCODE -ne 0) { Write-Error "config.cmd failed (exit $LASTEXITCODE)."; exit $LASTEXITCODE }
 
-# Install and start as Windows service
+# Install as Windows service (svc.cmd was removed in runner v2.335+; use New-Service directly)
 Write-Host "Installing Windows service..." -ForegroundColor Cyan
-& (Join-Path $RUNNER_DIR "svc.cmd") install
-& (Join-Path $RUNNER_DIR "svc.cmd") start
+$cfg     = Get-Content (Join-Path $RUNNER_DIR ".runner") | ConvertFrom-Json
+$url     = $cfg.gitHubUrl -replace "https://github.com/", ""
+$svcName = "actions.runner." + ($url -replace "/", ".") + "." + $cfg.agentName
+$exePath = Join-Path $RUNNER_DIR "bin\RunnerService.exe"
+
+New-Service -Name $svcName `
+    -BinaryPathName "`"$exePath`"" `
+    -DisplayName "GitHub Actions Runner ($svcName)" `
+    -StartupType Automatic
+Set-ItemProperty "HKLM:\SYSTEM\CurrentControlSet\Services\$svcName" `
+    -Name "AppDirectory" -Value $RUNNER_DIR
+Start-Service $svcName
 
 Write-Host ""
 Write-Host "Done!" -ForegroundColor Green
