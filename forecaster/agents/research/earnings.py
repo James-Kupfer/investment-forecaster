@@ -28,7 +28,7 @@ class EarningsAgent(BaseAgent):
                 ),
             }
         ]
-        result = self.call(messages, system=system_prompt, max_tokens=1024)
+        result = self.call(messages, system=system_prompt, max_tokens=1536)
         self.log_call(result, forecast_id=forecast_id, macro_state_id=macro_state_id)
         signal = result.output.get("signal") or result.output.get("earnings_trend")
         rationale = result.output.get("rationale") or result.output.get("fcf_assessment") or ""
@@ -36,7 +36,7 @@ class EarningsAgent(BaseAgent):
             forecast_id,
             earnings_signal=(signal or "")[:200],
             earnings_confidence=result.output.get("confidence"),
-            earnings_rationale=rationale[:1000],
+            earnings_rationale=rationale,
             earnings_model=self.model,
             earnings_prompt_version=result.prompt_version_id,
         )
