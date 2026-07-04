@@ -5,9 +5,14 @@ LLM Superforecaster — applies Tetlock superforecaster discipline to investment
 ## Architecture
 
 ### Database
-- SQL Server Express: `James-desktop\sqlexpress`, database `DMS`
+- SQL Server Express: `James-desktop\sqlexpress`
+- **`InvestmentForecaster`** — this app's database; owns `prompt_registry`, `macro_state`,
+  `forecasts`, `llm_call_log`, `agent_weights`, `position_catalysts`, `position_sources`, `sync_log`
+- **`InvestmentPortfolio`** — owned by `investment-portfolio-manager`; the forecaster reads
+  positions from it via `portfolio_db_cursor()` in `forecaster/db.py`
 - Windows Authentication (Trusted_Connection=yes) — no credentials stored
-- Connection via `forecaster/db.py`: `get_connection()` and `db_cursor()` context manager
+- `db_cursor()` / `get_connection()` → `InvestmentForecaster` (default)
+- `portfolio_db_cursor()` / `get_portfolio_connection()` → `InvestmentPortfolio`
 - Never store DB credentials in code or config files
 
 ### Agent Pattern
@@ -52,7 +57,7 @@ incrementally as agents complete.
 
 ### Migrations
 - Files: `migrations/NNN_description.sql` (zero-padded three-digit prefix)
-- Runner: `python scripts/run_migrations.py` — idempotent, splits on `GO`, commits per file
+- Runner: `python scripts/run_migrations.py` — idempotent, splits on `GO`, runs with autocommit
 - Always use `IF NOT EXISTS` / `IF OBJECT_ID IS NULL` patterns for idempotency
 - Naming convention: `001_initial_schema.sql`, `002_add_column.sql`, etc.
 
