@@ -31,13 +31,13 @@ class ElicitationAgent(BaseAgent):
                 ),
             }
         ]
-        result = self.call(messages, system=system_prompt, max_tokens=1536)
+        result = self.call(messages, system=system_prompt, max_tokens=3072)
         self.log_call(result, forecast_id=forecast_id, macro_state_id=macro_state_id)
         update_forecast_columns(
             forecast_id,
             invq3_p=result.output.get("initial_probability"),
             invq3_confidence=result.output.get("confidence"),
-            invq3_rationale=(result.output.get("rationale") or "")[:1000],
+            invq3_rationale=result.output.get("rationale"),
             invq3_model=self.model,
             invq3_prompt_version=result.prompt_version_id,
         )
