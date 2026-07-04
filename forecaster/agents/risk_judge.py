@@ -30,14 +30,14 @@ class RiskJudgeAgent(BaseAgent):
                 ),
             }
         ]
-        result = self.call(messages, system=system_prompt, max_tokens=1024)
+        result = self.call(messages, system=system_prompt, max_tokens=2048)
         self.log_call(result, forecast_id=forecast_id, macro_state_id=macro_state_id)
         update_forecast_columns(
             forecast_id,
             risk_judge_output=json.dumps(result.output.get("risks") or [])[:4000],
             invq2_floor=result.output.get("invq2_floor"),
             risk_judge_confidence=result.output.get("confidence"),
-            risk_judge_rationale=(result.output.get("rationale") or "")[:1000],
+            risk_judge_rationale=result.output.get("rationale"),
             risk_judge_model=self.model,
             risk_judge_prompt_version=result.prompt_version_id,
         )
