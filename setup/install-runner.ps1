@@ -49,7 +49,6 @@ if (Test-Path $RUNNER_DIR) {
     Remove-Item -Recurse -Force $RUNNER_DIR
 }
 New-Item -ItemType Directory -Force -Path $RUNNER_DIR | Out-Null
-Push-Location $RUNNER_DIR
 
 # Download
 Write-Host "Downloading runner..." -ForegroundColor Cyan
@@ -64,15 +63,13 @@ Remove-Item $zipPath
 
 # Configure
 Write-Host "Configuring runner..." -ForegroundColor Cyan
-.\config.cmd --url $REPO_URL --token $TOKEN --name $RUNNER_NAME --unattended --replace
+& (Join-Path $RUNNER_DIR "config.cmd") --url $REPO_URL --token $TOKEN --name $RUNNER_NAME --unattended --replace
 if ($LASTEXITCODE -ne 0) { Write-Error "config.cmd failed (exit $LASTEXITCODE)."; exit $LASTEXITCODE }
 
 # Install and start as Windows service
 Write-Host "Installing Windows service..." -ForegroundColor Cyan
-.\svc.cmd install
-.\svc.cmd start
-
-Pop-Location
+& (Join-Path $RUNNER_DIR "svc.cmd") install
+& (Join-Path $RUNNER_DIR "svc.cmd") start
 
 Write-Host ""
 Write-Host "Done!" -ForegroundColor Green
