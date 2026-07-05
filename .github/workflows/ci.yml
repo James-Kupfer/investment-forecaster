@@ -19,7 +19,7 @@ jobs:
 
     env:
       DB_SERVER: James-desktop\sqlexpress
-      DB_NAME: DMS
+      DB_NAME: InvestmentForecaster
       DB_DRIVER: ODBC Driver 17 for SQL Server
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 

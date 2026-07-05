@@ -5,7 +5,7 @@ LLM Superforecaster — applies Tetlock superforecaster discipline to investment
 ## Architecture
 
 ### Database
-- SQL Server Express: `James-desktop\sqlexpress`, database `DMS`
+- SQL Server Express: `James-desktop\sqlexpress`, database `InvestmentForecaster`
 - Windows Authentication (Trusted_Connection=yes) — no credentials stored
 - Connection via `forecaster/db.py`: `get_connection()` and `db_cursor()` context manager
 - Never store DB credentials in code or config files
