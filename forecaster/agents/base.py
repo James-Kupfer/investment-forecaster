@@ -26,6 +26,7 @@ class AgentResult:
     duration_ms: int
     output: dict
     error: Optional[str] = None
+    response_text: Optional[str] = None
 
 
 class BaseAgent(ABC):
@@ -58,11 +59,13 @@ class BaseAgent(ABC):
         response = None
         error = None
 
+        raw_text = None
         try:
             params: dict = {'model': self.model, 'max_tokens': max_tokens, 'messages': messages}
             if system:
                 params['system'] = system
             response = self.client.messages.create(**params)
+            raw_text = response.content[0].text if response.content else None
             output = self._parse_response(response)
         except Exception as exc:
             error = str(exc)
@@ -86,6 +89,7 @@ class BaseAgent(ABC):
             duration_ms=duration_ms,
             output=output,
             error=error,
+            response_text=raw_text,
         )
 
     def log_call(
@@ -100,11 +104,11 @@ class BaseAgent(ABC):
                 'INSERT INTO llm_call_log '
                 '(forecast_id, macro_state_id, agent_id, prompt_version_id, '
                 ' executing_model, tokens_in, tokens_out, tokens_cached, '
-                ' call_cost_usd, duration_ms, error) '
-                'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                ' call_cost_usd, duration_ms, error, response_text) '
+                'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
                 forecast_id, macro_state_id, result.agent_id, result.prompt_version_id,
                 result.model_id, result.tokens_in, result.tokens_out, result.tokens_cached,
-                result.call_cost_usd, result.duration_ms, result.error,
+                result.call_cost_usd, result.duration_ms, result.error, result.response_text,
             )
 
     @abstractmethod
