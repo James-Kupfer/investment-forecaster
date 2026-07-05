@@ -2,6 +2,7 @@ anthropic>=0.40.0
 pyodbc
 python-dotenv
 pandas
+requests
 yfinance
 pytest
 # TA-Lib requires the C library pre-installed.

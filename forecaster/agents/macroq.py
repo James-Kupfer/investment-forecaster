@@ -4,33 +4,41 @@ import uuid
 from datetime import date
 from typing import Optional
 
-import yfinance as yf
-
 from forecaster.agents.base import BaseAgent, AgentResult
 from forecaster.db import db_cursor, update_forecast_columns
+from forecaster.market_data import MarketDataFetcher
 from forecaster.utils import extract_json
 
 logger = logging.getLogger(__name__)
 
-_MACRO_TICKERS = {
-    "vix": "^VIX",
-    "dxy": "DX-Y.NYB",
-    "rates_10y": "^TNX",
-    "rates_2y": "^IRX",
-    "xlk": "XLK",
-    "xle": "XLE",
-    "xme": "XME",
-    "xlf": "XLF",
-    "xlv": "XLV",
-    "xli": "XLI",
+# (yfinance_ticker, ibkr_symbol, ibkr_sec_type)
+# ibkr_symbol=None means IBKR doesn't carry this instrument; yfinance is used directly.
+_MACRO_TICKERS: dict[str, tuple[str, str | None, str | None]] = {
+    "vix":       ("^VIX",      "VIX", "IND"),
+    "dxy":       ("DX-Y.NYB",  None,  None),   # not in IBKR
+    "rates_10y": ("^TNX",      None,  None),   # not in IBKR
+    "rates_2y":  ("^IRX",      None,  None),   # not in IBKR
+    "xlk":       ("XLK",       "XLK", "STK"),
+    "xle":       ("XLE",       "XLE", "STK"),
+    "xme":       ("XME",       "XME", "STK"),
+    "xlf":       ("XLF",       "XLF", "STK"),
+    "xlv":       ("XLV",       "XLV", "STK"),
+    "xli":       ("XLI",       "XLI", "STK"),
 }
+
+_fetcher = MarketDataFetcher()
 
 
 def _fetch_macro_snapshot() -> dict:
     data = {}
-    for key, ticker_str in _MACRO_TICKERS.items():
+    for key, (yf_ticker, ibkr_sym, ibkr_sec) in _MACRO_TICKERS.items():
         try:
-            hist = yf.Ticker(ticker_str).history(period="1mo")
+            hist = _fetcher.fetch_ohlcv(
+                symbol=ibkr_sym if ibkr_sym else yf_ticker,
+                period_yf="1mo",
+                ibkr_period="ONE_MONTH",
+                sec_type=ibkr_sec or "STK",
+            )
             if hist.empty:
                 data[key] = {"price": None, "return_1mo": None}
                 continue
@@ -39,7 +47,7 @@ def _fetch_macro_snapshot() -> dict:
             ret = (latest - earliest) / earliest if earliest != 0 else 0.0
             data[key] = {"price": round(latest, 4), "return_1mo": round(ret, 4)}
         except Exception as exc:
-            logger.warning("Failed to fetch %s (%s): %s", key, ticker_str, exc)
+            logger.warning("Failed to fetch %s (%s): %s", key, yf_ticker, exc)
             data[key] = {"price": None, "return_1mo": None}
     return data
 

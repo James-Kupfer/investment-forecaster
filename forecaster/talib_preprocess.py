@@ -1,9 +1,10 @@
 """
 TA-Lib preprocessing: OHLCV → human-readable indicator descriptions.
 
-Fetches price history via yfinance, computes indicators via TA-Lib (if
-installed), and returns plain-English descriptions suitable for LLM context.
-Falls back to pandas-based calculations when TA-Lib is not available.
+Fetches price history via MarketDataFetcher (IBKR primary, yfinance fallback),
+computes indicators via TA-Lib (if installed), and returns plain-English
+descriptions suitable for LLM context. Falls back to pandas-based calculations
+when TA-Lib is not available.
 """
 from __future__ import annotations
 
@@ -11,7 +12,8 @@ import logging
 from typing import Optional
 
 import pandas as pd
-import yfinance as yf
+
+from forecaster.market_data import MarketDataFetcher
 
 logger = logging.getLogger(__name__)
 
@@ -24,12 +26,10 @@ except ImportError:
 
 
 def fetch_ohlcv(symbol: str, period: str = "6mo") -> pd.DataFrame:
-    """Return OHLCV DataFrame from yfinance."""
-    ticker = yf.Ticker(symbol)
-    df = ticker.history(period=period)
-    if df.empty:
-        raise ValueError(f"No price data returned for {symbol}")
-    return df
+    """Return OHLCV DataFrame. IBKR primary, yfinance fallback."""
+    return MarketDataFetcher().fetch_ohlcv(
+        symbol, period_yf=period, ibkr_period="SIX_MONTHS"
+    )
 
 
 def describe_rsi(df: pd.DataFrame, period: int = 14) -> str:
