@@ -42,9 +42,10 @@ class PatternAgent(BaseAgent):
             pattern_signal=dominant.get("signal"),
             pattern_key_level=result.output.get("key_level"),
             pattern_confidence=dominant.get("reliability") or result.output.get("confidence"),
-            pattern_rationale=rationale[:1000],
+            pattern_rationale=rationale,
             pattern_model=self.model,
             pattern_prompt_version=result.prompt_version_id,
+            pattern_output=json.dumps(result.output),
         )
         return result
 

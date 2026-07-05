@@ -39,6 +39,7 @@ class EarningsAgent(BaseAgent):
             earnings_rationale=rationale,
             earnings_model=self.model,
             earnings_prompt_version=result.prompt_version_id,
+            earnings_output=json.dumps(result.output),
         )
         return result
 

@@ -55,6 +55,9 @@ class AggregationAgent(BaseAgent):
             invq2_prompt_version=result.prompt_version_id,
             compound_conviction=result.output.get("compound_conviction"),
             asymmetry_ratio=computed_asymmetry,
+            base_case_p=result.output.get("base_case_probability"),
+            recommendation=result.output.get("recommendation"),
+            aggregation_output=json.dumps(result.output),
         )
         return result
 

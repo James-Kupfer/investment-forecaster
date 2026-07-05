@@ -30,17 +30,18 @@ class ReviewAgent(BaseAgent):
                 ),
             }
         ]
-        result = self.call(messages, system=system_prompt, max_tokens=1024)
+        result = self.call(messages, system=system_prompt, max_tokens=1536)
         self.log_call(result, forecast_id=forecast_id, macro_state_id=macro_state_id)
         flag = result.output.get("review_flag")
         flag_bit = 1 if flag is True else (0 if flag is False else None)
         update_forecast_columns(
             forecast_id,
             review_flag=flag_bit,
-            review_rationale=(result.output.get("critique") or result.output.get("rationale") or "")[:1000],
+            review_rationale=result.output.get("critique") or result.output.get("rationale"),
             review_confidence=result.output.get("confidence"),
             review_model=self.model,
             review_prompt_version=result.prompt_version_id,
+            review_output=json.dumps(result.output),
         )
         return result
 

@@ -34,6 +34,9 @@ class BaseAgent(ABC):
     model: str
 
     def __init__(self) -> None:
+        from forecaster.agents.model_config import AGENT_MODELS
+        if self.agent_id in AGENT_MODELS:
+            self.model = AGENT_MODELS[self.agent_id]
         self.client = anthropic.Anthropic()
 
     def get_active_prompt(self) -> tuple[int, str]:

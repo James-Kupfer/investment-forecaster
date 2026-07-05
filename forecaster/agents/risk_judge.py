@@ -34,7 +34,7 @@ class RiskJudgeAgent(BaseAgent):
         self.log_call(result, forecast_id=forecast_id, macro_state_id=macro_state_id)
         update_forecast_columns(
             forecast_id,
-            risk_judge_output=json.dumps(result.output.get("risks") or [])[:4000],
+            risk_judge_output=json.dumps(result.output),
             invq2_floor=result.output.get("invq2_floor"),
             risk_judge_confidence=result.output.get("confidence"),
             risk_judge_rationale=result.output.get("rationale"),

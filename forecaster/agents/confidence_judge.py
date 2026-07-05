@@ -40,6 +40,9 @@ class ConfidenceJudgeAgent(BaseAgent):
             confidence_confidence=result.output.get("confidence"),
             confidence_judge_model=self.model,
             confidence_prompt_version=result.prompt_version_id,
+            ci_low=result.output.get("confidence_interval_low"),
+            ci_high=result.output.get("confidence_interval_high"),
+            confidence_judge_output=json.dumps(result.output),
         )
         return result
 

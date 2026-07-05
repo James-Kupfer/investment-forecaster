@@ -1,3 +1,4 @@
+import json
 from typing import Optional
 
 from forecaster.agents.base import BaseAgent, AgentResult
@@ -36,9 +37,10 @@ class TrendAgent(BaseAgent):
             trend_signal=result.output.get("trend_signal"),
             trend_ma_alignment=(tech_context.get("ma_alignment") or "")[:200],
             trend_confidence=result.output.get("confidence"),
-            trend_rationale=(result.output.get("rationale") or "")[:1000],
+            trend_rationale=result.output.get("rationale"),
             trend_model=self.model,
             trend_prompt_version=result.prompt_version_id,
+            trend_output=json.dumps(result.output),
         )
         return result
 

@@ -1,3 +1,4 @@
+import json
 from typing import Optional
 
 from forecaster.agents.base import BaseAgent, AgentResult
@@ -37,6 +38,7 @@ class PrimarySourceAgent(BaseAgent):
             primary_rationale=result.output.get("rationale"),
             primary_model=self.model,
             primary_prompt_version=result.prompt_version_id,
+            primary_output=json.dumps(result.output),
         )
         return result
 

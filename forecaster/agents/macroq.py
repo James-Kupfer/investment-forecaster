@@ -83,7 +83,8 @@ class MacroQAgent(BaseAgent):
                 macroq_node_id=(root_node.get("node_id") or "")[:50],
                 macroq_p=root_node.get("composite_score"),
                 macroq_confidence=root_node.get("composite_confidence"),
-                macroq_rationale=(root_node.get("composite_rationale") or "")[:1000],
+                macroq_rationale=root_node.get("composite_rationale"),
+                macroq_output=json.dumps(result.output),
             )
         return result
 
@@ -119,12 +120,12 @@ class MacroQAgent(BaseAgent):
                     stable_node_id, parent, today,
                     node.get("composite_score", 0.5),
                     node.get("composite_confidence", "medium"),
-                    (node.get("composite_rationale") or "")[:1000],
+                    node.get("composite_rationale") or "",
                     node.get("rates_signal"), node.get("rates_confidence"),
                     node.get("dxy_signal"), node.get("dxy_confidence"),
                     node.get("vix_signal"), node.get("vix_confidence"),
                     node.get("sector_signal"), node.get("sector_confidence"),
-                    (node.get("node_rationale") or "")[:1000],
+                    node.get("node_rationale") or "",
                     self.model, prompt_version_id,
                 )
                 row = cur.fetchone()

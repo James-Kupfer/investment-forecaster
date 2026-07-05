@@ -1,3 +1,4 @@
+import json
 import re
 from typing import Optional
 
@@ -43,9 +44,10 @@ class MomentumAgent(BaseAgent):
             momentum_macd=(tech_context.get("macd") or "")[:50],
             momentum_signal=result.output.get("momentum_signal"),
             momentum_confidence=result.output.get("confidence"),
-            momentum_rationale=(result.output.get("rationale") or "")[:1000],
+            momentum_rationale=result.output.get("rationale"),
             momentum_model=self.model,
             momentum_prompt_version=result.prompt_version_id,
+            momentum_output=json.dumps(result.output),
         )
         return result
 

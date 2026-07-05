@@ -1,3 +1,4 @@
+import json
 from typing import Optional
 
 from forecaster.agents.base import BaseAgent, AgentResult
@@ -29,15 +30,16 @@ class QuestionDefinitionAgent(BaseAgent):
                 ),
             }
         ]
-        result = self.call(messages, system=system_prompt, max_tokens=512)
+        result = self.call(messages, system=system_prompt, max_tokens=1024)
         self.log_call(result, forecast_id=forecast_id, macro_state_id=macro_state_id)
         update_forecast_columns(
             forecast_id,
             invq3_definition=result.output.get("question"),
             invq3_definition_confidence=result.output.get("confidence"),
-            invq3_definition_rationale=(result.output.get("rationale") or "")[:1000],
+            invq3_definition_rationale=result.output.get("rationale"),
             invq3_def_model=self.model,
             invq3_def_prompt_version=result.prompt_version_id,
+            question_def_output=json.dumps(result.output),
         )
         return result
 

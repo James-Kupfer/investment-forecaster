@@ -1,3 +1,4 @@
+import json
 from typing import Optional
 
 from forecaster.agents.base import BaseAgent, AgentResult
@@ -36,9 +37,10 @@ class VolumeAgent(BaseAgent):
             forecast_id,
             volume_signal=result.output.get("volume_signal"),
             volume_confidence=result.output.get("confidence"),
-            volume_rationale=(result.output.get("rationale") or "")[:1000],
+            volume_rationale=result.output.get("rationale"),
             volume_model=self.model,
             volume_prompt_version=result.prompt_version_id,
+            volume_output=json.dumps(result.output),
         )
         return result
 
