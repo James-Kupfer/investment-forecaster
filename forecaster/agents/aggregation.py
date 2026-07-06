@@ -30,7 +30,7 @@ class AggregationAgent(BaseAgent):
                 ),
             }
         ]
-        result = self.call(messages, system=system_prompt, max_tokens=2048)
+        result = self.call(messages, system=system_prompt, max_tokens=8096)
         self.log_call(result, forecast_id=forecast_id, macro_state_id=macro_state_id)
         invq1 = result.output.get("upside_probability")
         invq2 = result.output.get("downside_probability")

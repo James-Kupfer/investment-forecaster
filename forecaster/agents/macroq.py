@@ -38,6 +38,7 @@ def _fetch_macro_snapshot() -> dict:
                 period_yf="1mo",
                 ibkr_period="ONE_MONTH",
                 sec_type=ibkr_sec or "STK",
+                yahoo_symbol=yf_ticker,
             )
             if hist.empty:
                 data[key] = {"price": None, "return_1mo": None}
@@ -91,7 +92,7 @@ class MacroQAgent(BaseAgent):
                 macroq_node_id=(root_node.get("node_id") or "")[:50],
                 macroq_p=root_node.get("composite_score"),
                 macroq_confidence=root_node.get("composite_confidence"),
-                macroq_rationale=root_node.get("composite_rationale"),
+                macroq_rationale=root_node.get("composite_rationale") or root_node.get("node_rationale"),
                 macroq_output=json.dumps(result.output),
             )
         return result

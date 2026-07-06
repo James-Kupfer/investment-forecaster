@@ -31,7 +31,7 @@ class ElicitationAgent(BaseAgent):
                 ),
             }
         ]
-        result = self.call(messages, system=system_prompt, max_tokens=3072)
+        result = self.call(messages, system=system_prompt, max_tokens=8096)
         self.log_call(result, forecast_id=forecast_id, macro_state_id=macro_state_id)
         update_forecast_columns(
             forecast_id,

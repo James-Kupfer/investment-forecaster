@@ -9,7 +9,7 @@ when TA-Lib is not available.
 from __future__ import annotations
 
 import logging
-from typing import Optional
+from typing import Optional, Tuple
 
 import pandas as pd
 
@@ -140,16 +140,38 @@ def describe_volume(df: pd.DataFrame, lookback: int = 20) -> str:
     return f"Volume {ratio:.1f}x average — normal"
 
 
+def describe_roc(df: pd.DataFrame, period: int = 10) -> Tuple[str, Optional[float]]:
+    """Return (plain-English description, raw float value) for ROC."""
+    close = df["Close"].values
+    if _TALIB_AVAILABLE:
+        roc_series = talib.ROC(close, timeperiod=period)
+        roc = roc_series[-1]
+    else:
+        if len(df) > period:
+            roc = (close[-1] - close[-(period + 1)]) / close[-(period + 1)] * 100
+        else:
+            roc = float("nan")
+
+    if pd.isna(roc):
+        return "ROC unavailable (insufficient history)", None
+    direction = "positive" if roc > 0 else "negative"
+    return f"ROC({period}) {roc:+.2f}% — {direction} momentum", round(float(roc), 4)
+
+
 def get_technical_context(symbol: str, period: str = "6mo") -> dict[str, str]:
     """
     Return a dict of indicator_name → plain-English description for *symbol*.
     Raises ValueError if price data cannot be fetched.
     """
     df = fetch_ohlcv(symbol, period=period)
-    return {
+    roc_desc, roc_val = describe_roc(df)
+    ctx = {
         "rsi": describe_rsi(df),
         "macd": describe_macd(df),
         "ma_alignment": describe_ma_alignment(df),
         "adx": describe_adx(df),
         "volume": describe_volume(df),
+        "roc": roc_desc,
+        "_roc_value": roc_val,
     }
+    return ctx

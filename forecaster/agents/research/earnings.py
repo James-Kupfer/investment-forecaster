@@ -1,3 +1,4 @@
+import json
 from typing import Optional
 
 from forecaster.agents.base import BaseAgent, AgentResult
@@ -24,11 +25,13 @@ class EarningsAgent(BaseAgent):
                     f"Symbol: {symbol}\n"
                     f"Investment thesis: {thesis}\n\n"
                     "Assess the earnings trajectory and FCF generation. "
-                    "Output: signal (bullish/bearish/neutral), confidence (high/medium/low), rationale."
+                    "Respond ONLY with a valid JSON object. All string values must be single-line plain text — "
+                    "no markdown, no line breaks inside strings. "
+                    "Output fields: signal (bullish/bearish/neutral), confidence (high/medium/low), rationale."
                 ),
             }
         ]
-        result = self.call(messages, system=system_prompt, max_tokens=1536)
+        result = self.call(messages, system=system_prompt, max_tokens=4096)
         self.log_call(result, forecast_id=forecast_id, macro_state_id=macro_state_id)
         signal = result.output.get("signal") or result.output.get("earnings_trend")
         rationale = result.output.get("rationale") or result.output.get("fcf_assessment") or ""

@@ -25,11 +25,13 @@ class PrimarySourceAgent(BaseAgent):
                     f"Symbol: {symbol}\n"
                     f"Investment thesis: {thesis}\n\n"
                     "Identify and weigh primary source evidence for and against the thesis. "
+                    "You must respond ONLY with a JSON object — no markdown prose, no caveats about data access. "
+                    "Use your training knowledge to assess. "
                     "Output: net_assessment (bullish/bearish/neutral), confidence (high/medium/low), rationale."
                 ),
             }
         ]
-        result = self.call(messages, system=system_prompt, max_tokens=1536)
+        result = self.call(messages, system=system_prompt, max_tokens=4096)
         self.log_call(result, forecast_id=forecast_id, macro_state_id=macro_state_id)
         update_forecast_columns(
             forecast_id,

@@ -30,7 +30,8 @@ class MomentumAgent(BaseAgent):
                 "content": (
                     f"Symbol: {symbol}\n"
                     f"RSI: {tech_context.get('rsi', 'N/A')}\n"
-                    f"MACD: {tech_context.get('macd', 'N/A')}\n\n"
+                    f"MACD: {tech_context.get('macd', 'N/A')}\n"
+                    f"ROC: {tech_context.get('roc', 'N/A')}\n\n"
                     "Assess the momentum regime. Output: momentum_signal (bullish/bearish/neutral), "
                     "confidence (high/medium/low), rationale."
                 ),
@@ -42,6 +43,7 @@ class MomentumAgent(BaseAgent):
             forecast_id,
             momentum_rsi=_parse_rsi_value(tech_context.get("rsi", "")),
             momentum_macd=(tech_context.get("macd") or "")[:50],
+            momentum_roc=tech_context.get("_roc_value"),
             momentum_signal=result.output.get("momentum_signal"),
             momentum_confidence=result.output.get("confidence"),
             momentum_rationale=result.output.get("rationale"),
