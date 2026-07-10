@@ -40,7 +40,6 @@ class ForecastPipeline:
         from forecaster.agents.technical.momentum import MomentumAgent
         from forecaster.agents.technical.trend import TrendAgent
         from forecaster.agents.technical.volume import VolumeAgent
-        from forecaster.agents.technical.pattern import PatternAgent
         from forecaster.agents.technical.judge import TechnicalJudgeAgent
         from forecaster.agents.elicitation import ElicitationAgent
         from forecaster.agents.review import ReviewAgent
@@ -92,8 +91,8 @@ class ForecastPipeline:
                     forecast_id=forecast_id, macro_state_id=macro_state_id),
             ])
 
-            # Step 6 - four technical agents (parallel), then technical judge
-            momentum_r, trend_r, volume_r, pattern_r = self._run_parallel([
+            # Step 6 - three technical agents (parallel), then technical judge
+            momentum_r, trend_r, volume_r = self._run_parallel([
                 lambda: MomentumAgent().run(
                     symbol=symbol, tech_context=tech_context,
                     forecast_id=forecast_id, macro_state_id=macro_state_id),
@@ -103,12 +102,9 @@ class ForecastPipeline:
                 lambda: VolumeAgent().run(
                     symbol=symbol, tech_context=tech_context,
                     forecast_id=forecast_id, macro_state_id=macro_state_id),
-                lambda: PatternAgent().run(
-                    symbol=symbol, tech_context=tech_context,
-                    forecast_id=forecast_id, macro_state_id=macro_state_id),
             ])
             tech_judge_result = TechnicalJudgeAgent().run(
-                tech_results=[momentum_r, trend_r, volume_r, pattern_r],
+                tech_results=[momentum_r, trend_r, volume_r],
                 forecast_id=forecast_id, macro_state_id=macro_state_id,
             )
 
@@ -122,7 +118,6 @@ class ForecastPipeline:
                 "momentum": momentum_r.output if momentum_r else {},
                 "trend": trend_r.output if trend_r else {},
                 "volume": volume_r.output if volume_r else {},
-                "pattern": pattern_r.output if pattern_r else {},
                 "technical_judge": tech_judge_result.output if tech_judge_result else {},
             }
 

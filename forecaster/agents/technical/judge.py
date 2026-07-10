@@ -17,7 +17,7 @@ class TechnicalJudgeAgent(BaseAgent):
         macro_state_id: Optional[int] = None,
     ) -> AgentResult:
         _, system_prompt = self.get_active_prompt()
-        labels = ["momentum", "trend", "volume", "pattern"]
+        labels = ["momentum", "trend", "volume"]
         lines = [
             f"{label}: {json.dumps(r.output)}"
             for label, r in zip(labels, tech_results)
