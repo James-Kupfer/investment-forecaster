@@ -32,7 +32,14 @@ $PgUser     = python -c "import sys; sys.path.insert(0, r'$SecretsDir'); from po
 $PgPassword = python -c "import sys; sys.path.insert(0, r'$SecretsDir'); from postgres import postgres_password; print(postgres_password)"
 $PgHost     = python -c "import sys; sys.path.insert(0, r'$SecretsDir'); from postgres import dsn; print(dsn)"
 
-$AnthropicKey = python -c "import re; m = re.search(r\"ANTHROPIC_API_KEY\s*=\s*'([^']+)'\", open(r'$AnthropicFile').read()); print(m.group(1))"
+$AnthropicContent = Get-Content $AnthropicFile -Raw
+if ($AnthropicContent -match "ANTHROPIC_API_KEY\s*=\s*'([^']+)'") {
+    $AnthropicKey = $Matches[1]
+} elseif ($AnthropicContent -match 'ANTHROPIC_API_KEY\s*=\s*"([^"]+)"') {
+    $AnthropicKey = $Matches[1]
+} else {
+    $AnthropicKey = ""
+}
 
 if (-not $PgUser -or -not $PgPassword -or -not $PgHost) {
     Write-Error "Failed to read Postgres credentials from $PgSecretsFile"
@@ -81,11 +88,13 @@ Write-Host "[3/6] Creating databases (if they do not exist)..."
 $Env:PGPASSWORD = $PgPassword
 
 foreach ($DbName in @("investment_forecaster", "investment_portfolio")) {
-    $Exists = psql -U $PgUser -h $PgHost -tAc "SELECT 1 FROM pg_database WHERE datname='$DbName'" postgres 2>$null
+    $CheckSql = "SELECT 1 FROM pg_database WHERE datname='" + $DbName + "'"
+    $Exists = psql -U $PgUser -h $PgHost -tAc $CheckSql postgres 2>$null
     if ($Exists -eq "1") {
         Write-Host "  $DbName already exists, skipping"
     } else {
-        psql -U $PgUser -h $PgHost -c "CREATE DATABASE $DbName;" postgres
+        $CreateSql = "CREATE DATABASE " + $DbName + ";"
+        psql -U $PgUser -h $PgHost -c $CreateSql postgres
         Write-Host "  Created $DbName"
     }
 }
