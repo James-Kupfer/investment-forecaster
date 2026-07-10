@@ -32,7 +32,7 @@ $PgUser     = python -c "import sys; sys.path.insert(0, r'$SecretsDir'); from po
 $PgPassword = python -c "import sys; sys.path.insert(0, r'$SecretsDir'); from postgres import postgres_password; print(postgres_password)"
 $PgHost     = python -c "import sys; sys.path.insert(0, r'$SecretsDir'); from postgres import dsn; print(dsn)"
 
-$AnthropicKey = python -c "import sys; sys.path.insert(0, r'$SecretsDir'); from anthropic import ANTHROPIC_API_KEY; print(ANTHROPIC_API_KEY)"
+$AnthropicKey = python -c "import re; m = re.search(r\"ANTHROPIC_API_KEY\s*=\s*'([^']+)'\", open(r'$AnthropicFile').read()); print(m.group(1))"
 
 if (-not $PgUser -or -not $PgPassword -or -not $PgHost) {
     Write-Error "Failed to read Postgres credentials from $PgSecretsFile"
