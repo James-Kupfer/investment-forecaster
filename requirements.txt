@@ -1,5 +1,5 @@
 anthropic>=0.40.0
-pyodbc
+psycopg2-binary
 python-dotenv
 pandas
 requests

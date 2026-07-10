@@ -1,35 +1,30 @@
 #!/usr/bin/env python
-"""Run all SQL migrations in migrations/ against SQL Server.
+"""Run all SQL migrations in migrations/ against PostgreSQL.
 
-Idempotent: every migration uses IF NOT EXISTS / IF OBJECT_ID IS NULL guards.
-Splits on GO (line-level, case-insensitive) and executes each batch separately
-under autocommit so CREATE DATABASE runs outside any transaction.
+Idempotent: every migration uses CREATE TABLE IF NOT EXISTS / DO $$ blocks.
+Splits on ';' and executes each statement under autocommit.
 """
 import os
-import re
 import sys
 from pathlib import Path
 
-import pyodbc
+import psycopg2
 from dotenv import load_dotenv
 
 load_dotenv()
 
-_SERVER = os.getenv('DB_SERVER', r'James-desktop\sqlexpress')
-_DRIVER = os.getenv('DB_DRIVER', 'ODBC Driver 17 for SQL Server')
+_HOST = os.getenv('DB_HOST', 'localhost')
+_PORT = int(os.getenv('DB_PORT', '5432'))
+_NAME = os.getenv('DB_NAME', 'investment_forecaster')
+_USER = os.getenv('DB_USER', 'postgres')
+_PASSWORD = os.getenv('DB_PASSWORD', '')
+
 MIGRATIONS_DIR = Path(__file__).parent.parent / 'migrations'
 
 
-def split_on_go(sql: str) -> list[str]:
-    batches = re.split(r'^\s*GO\s*$', sql, flags=re.IGNORECASE | re.MULTILINE)
-    return [b.strip() for b in batches if b.strip()]
-
-
 def run_migrations() -> None:
-    conn = pyodbc.connect(
-        f'DRIVER={{{_DRIVER}}};SERVER={_SERVER};DATABASE=master;Trusted_Connection=yes;',
-        autocommit=True,
-    )
+    conn = psycopg2.connect(host=_HOST, port=_PORT, dbname=_NAME, user=_USER, password=_PASSWORD)
+    conn.autocommit = True
     cursor = conn.cursor()
 
     mig_files = sorted(MIGRATIONS_DIR.glob('*.sql'))
@@ -38,10 +33,13 @@ def run_migrations() -> None:
         return
 
     for mf in mig_files:
+        sql = mf.read_text(encoding='utf-8').strip()
+        if not sql or sql.startswith('--'):
+            print(f'  skip  {mf.name} (no-op)')
+            continue
         print(f'Applying {mf.name}...')
-        sql = mf.read_text(encoding='utf-8')
-        for batch in split_on_go(sql):
-            cursor.execute(batch)
+        for stmt in (s.strip() for s in sql.split(';') if s.strip()):
+            cursor.execute(stmt)
         print(f'  OK')
 
     cursor.close()

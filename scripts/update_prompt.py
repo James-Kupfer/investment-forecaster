@@ -23,8 +23,8 @@ def update_prompt(agent_id: str, version: str, prompt_text: str) -> None:
     """Deactivate old active prompt for agent, insert new prompt with given version."""
     with db_cursor() as cur:
         cur.execute(
-            "UPDATE prompt_registry SET is_active = 0 WHERE agent_id = ? AND is_active = 1",
-            agent_id,
+            "UPDATE prompt_registry SET is_active = FALSE WHERE agent_id = %s AND is_active = TRUE",
+            (agent_id,),
         )
         deactivated = cur.rowcount
         if deactivated > 0:
@@ -34,11 +34,9 @@ def update_prompt(agent_id: str, version: str, prompt_text: str) -> None:
             """
             INSERT INTO prompt_registry
                 (agent_id, prompt_version, prompt_text, authored_by_model, is_active)
-            VALUES (?, ?, ?, 'update_prompt_script', 1)
+            VALUES (%s, %s, %s, 'update_prompt_script', TRUE)
             """,
-            agent_id,
-            version,
-            prompt_text,
+            (agent_id, version, prompt_text),
         )
         print(f"  seeded {agent_id} ({version})")
 

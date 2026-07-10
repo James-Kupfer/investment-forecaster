@@ -123,19 +123,19 @@ class MacroQAgent(BaseAgent):
                         sector_signal, sector_confidence,
                         node_rationale, executing_model, prompt_version_id
                     )
-                    OUTPUT INSERTED.id
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    RETURNING id
                     """,
-                    stable_node_id, parent, today,
-                    node.get("composite_score", 0.5),
-                    node.get("composite_confidence", "medium"),
-                    node.get("composite_rationale") or "",
-                    node.get("rates_signal"), node.get("rates_confidence"),
-                    node.get("dxy_signal"), node.get("dxy_confidence"),
-                    node.get("vix_signal"), node.get("vix_confidence"),
-                    node.get("sector_signal"), node.get("sector_confidence"),
-                    node.get("node_rationale") or "",
-                    self.model, prompt_version_id,
+                    (stable_node_id, parent, today,
+                     node.get("composite_score", 0.5),
+                     node.get("composite_confidence", "medium"),
+                     node.get("composite_rationale") or "",
+                     node.get("rates_signal"), node.get("rates_confidence"),
+                     node.get("dxy_signal"), node.get("dxy_confidence"),
+                     node.get("vix_signal"), node.get("vix_confidence"),
+                     node.get("sector_signal"), node.get("sector_confidence"),
+                     node.get("node_rationale") or "",
+                     self.model, prompt_version_id),
                 )
                 row = cur.fetchone()
                 if row and node.get("parent_node_id") is None:

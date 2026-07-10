@@ -6,6 +6,9 @@ For every unresolved forecast past its resolution_date:
 2. Determines invq1 (upside) and invq2 (downside) binary outcomes
 3. Computes Brier scores: (probability - outcome)^2
 4. Updates forecasts row and agent_weights rolling accuracy
+
+Note: positions thresholds are read from the portfolio database separately;
+PostgreSQL does not support cross-database queries.
 """
 import logging
 import sys
@@ -48,9 +51,9 @@ def _update_agent_weight(
         """
         SELECT rolling_accuracy, sample_size
         FROM agent_weights
-        WHERE agent_id = ? AND question_type = ? AND model_id = ?
+        WHERE agent_id = %s AND question_type = %s AND model_id = %s
         """,
-        agent_id, question_type, model_id,
+        (agent_id, question_type, model_id),
     )
     row = cur.fetchone()
     accuracy = 1.0 - brier
@@ -60,29 +63,28 @@ def _update_agent_weight(
         cur.execute(
             """
             UPDATE agent_weights
-            SET rolling_accuracy = ?, sample_size = ?, last_updated = GETDATE()
-            WHERE agent_id = ? AND question_type = ? AND model_id = ?
+            SET rolling_accuracy = %s, sample_size = %s, last_updated = NOW()
+            WHERE agent_id = %s AND question_type = %s AND model_id = %s
             """,
-            new_rolling, n, agent_id, question_type, model_id,
+            (new_rolling, n, agent_id, question_type, model_id),
         )
     else:
         cur.execute(
             """
             INSERT INTO agent_weights
                 (agent_id, question_type, model_id, rolling_accuracy, sample_size)
-            VALUES (?, ?, ?, ?, 1)
+            VALUES (%s, %s, %s, %s, 1)
             """,
-            agent_id, question_type, model_id, accuracy,
+            (agent_id, question_type, model_id, accuracy),
         )
 
 
-def resolve_forecast(row: tuple) -> None:
+def resolve_forecast(row: tuple, upside_threshold: float, drawdown_threshold: float) -> None:
     from forecaster.db import db_cursor
 
     (
         forecast_id, symbol, resolution_date_str, forecast_date_str,
         invq1_p, invq2_p, invq1_model, invq2_model,
-        upside_threshold, drawdown_threshold,
     ) = row
 
     resolution_date = date.fromisoformat(str(resolution_date_str))
@@ -115,13 +117,13 @@ def resolve_forecast(row: tuple) -> None:
         cur.execute(
             """
             UPDATE forecasts
-            SET resolved = 1,
-                resolved_outcome = ?,
-                brier_q1 = ?,
-                brier_q2 = ?
-            WHERE id = ?
+            SET resolved = TRUE,
+                resolved_outcome = %s,
+                brier_q1 = %s,
+                brier_q2 = %s
+            WHERE id = %s
             """,
-            resolved_outcome, brier_q1, brier_q2, forecast_id,
+            (resolved_outcome, brier_q1, brier_q2, forecast_id),
         )
         if brier_q1 is not None and invq1_model:
             _update_agent_weight(cur, "aggregation", "invq1", invq1_model, brier_q1)
@@ -137,24 +139,28 @@ def resolve_forecast(row: tuple) -> None:
 
 
 def main() -> None:
-    from forecaster.db import db_cursor
+    from forecaster.db import db_cursor, portfolio_db_cursor
+
+    # Fetch position thresholds from the portfolio database (cross-DB join not
+    # supported in PostgreSQL; merge in Python instead).
+    with portfolio_db_cursor() as cur:
+        cur.execute("SELECT symbol, upside_threshold, drawdown_threshold FROM positions")
+        thresholds = {row[0]: (row[1], row[2]) for row in cur.fetchall()}
 
     today = date.today().isoformat()
     with db_cursor() as cur:
         cur.execute(
             """
             SELECT
-                f.id, f.symbol, f.resolution_date, f.forecast_date,
-                f.invq1_p, f.invq2_p, f.invq1_model, f.invq2_model,
-                p.upside_threshold, p.drawdown_threshold
-            FROM forecasts f
-            JOIN positions p ON f.symbol = p.symbol
-            WHERE f.resolved = 0
-              AND f.resolution_date <= ?
-              AND (f.invq1_p IS NOT NULL OR f.invq2_p IS NOT NULL)
-            ORDER BY f.resolution_date
+                id, symbol, resolution_date, forecast_date,
+                invq1_p, invq2_p, invq1_model, invq2_model
+            FROM forecasts
+            WHERE resolved = FALSE
+              AND resolution_date <= %s
+              AND (invq1_p IS NOT NULL OR invq2_p IS NOT NULL)
+            ORDER BY resolution_date
             """,
-            today,
+            (today,),
         )
         rows = cur.fetchall()
 
@@ -164,8 +170,10 @@ def main() -> None:
 
     logger.info("Resolving %d forecasts", len(rows))
     for row in rows:
+        symbol = row[1]
+        upside, drawdown = thresholds.get(symbol, (0.20, 0.20))
         try:
-            resolve_forecast(tuple(row))
+            resolve_forecast(tuple(row), upside, drawdown)
         except Exception as exc:
             logger.error("forecast_id=%s failed: %s", row[0], exc)
 

@@ -1,27 +1,26 @@
 import os
 from contextlib import contextmanager
-import pyodbc
+
+import psycopg2
 from dotenv import load_dotenv
 
 load_dotenv()
 
-_SERVER = os.getenv('DB_SERVER', r'James-desktop\sqlexpress')
-_DATABASE = os.getenv('DB_NAME', 'InvestmentForecaster')
-_PORTFOLIO_DATABASE = os.getenv('PORTFOLIO_DB_NAME', 'InvestmentPortfolio')
-_DRIVER = os.getenv('DB_DRIVER', 'ODBC Driver 17 for SQL Server')
+_HOST = os.getenv('DB_HOST', 'localhost')
+_PORT = int(os.getenv('DB_PORT', '5432'))
+_NAME = os.getenv('DB_NAME', 'investment_forecaster')
+_USER = os.getenv('DB_USER', 'postgres')
+_PASSWORD = os.getenv('DB_PASSWORD', '')
+_PORTFOLIO_NAME = os.getenv('PORTFOLIO_DB_NAME', 'investment_portfolio')
 
 
-def get_connection() -> pyodbc.Connection:
-    return pyodbc.connect(
-        f'DRIVER={{{_DRIVER}}};SERVER={_SERVER};DATABASE={_DATABASE};Trusted_Connection=yes;'
-    )
+def get_connection() -> psycopg2.extensions.connection:
+    return psycopg2.connect(host=_HOST, port=_PORT, dbname=_NAME, user=_USER, password=_PASSWORD)
 
 
-def get_portfolio_connection() -> pyodbc.Connection:
-    """Connection to InvestmentPortfolio — positions are owned by portfolio-manager."""
-    return pyodbc.connect(
-        f'DRIVER={{{_DRIVER}}};SERVER={_SERVER};DATABASE={_PORTFOLIO_DATABASE};Trusted_Connection=yes;'
-    )
+def get_portfolio_connection() -> psycopg2.extensions.connection:
+    """Connection to investment_portfolio — positions are owned by portfolio-manager."""
+    return psycopg2.connect(host=_HOST, port=_PORT, dbname=_PORTFOLIO_NAME, user=_USER, password=_PASSWORD)
 
 
 @contextmanager
@@ -40,7 +39,7 @@ def db_cursor():
 
 @contextmanager
 def portfolio_db_cursor():
-    """Cursor for InvestmentPortfolio — read/write positions from the portfolio-manager DB."""
+    """Cursor for investment_portfolio — read positions from the portfolio-manager DB."""
     conn = get_portfolio_connection()
     try:
         cursor = conn.cursor()
@@ -57,7 +56,7 @@ def update_forecast_columns(forecast_id: int, **kwargs) -> None:
     """UPDATE forecasts SET col=val, ... WHERE id=forecast_id."""
     if not kwargs:
         return
-    cols = ", ".join(f"{k} = ?" for k in kwargs)
+    cols = ", ".join(f"{k} = %s" for k in kwargs)
     values = list(kwargs.values()) + [forecast_id]
     with db_cursor() as cur:
-        cur.execute(f"UPDATE forecasts SET {cols} WHERE id = ?", tuple(values))
+        cur.execute(f"UPDATE forecasts SET {cols} WHERE id = %s", tuple(values))

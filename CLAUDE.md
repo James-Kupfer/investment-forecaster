@@ -5,11 +5,12 @@ LLM Superforecaster — applies Tetlock superforecaster discipline to investment
 > For full schema, module/function reference, and agent catalogue see `architecture.md`.
 
 ## Database
-- SQL Server Express: `James-desktop\sqlexpress`
-- **`InvestmentForecaster`** — this app's database (`db_cursor()` / `get_connection()`)
-- **`InvestmentPortfolio`** — owned by `investment-portfolio-manager`; read via `portfolio_db_cursor()` / `get_portfolio_connection()` in `forecaster/db.py`
-- Windows Authentication (`Trusted_Connection=yes`) — no credentials stored anywhere
-- **Never store DB credentials in code or config files**
+- PostgreSQL on `localhost:5432`
+- **`investment_forecaster`** — this app's database (`db_cursor()` / `get_connection()`)
+- **`investment_portfolio`** — owned by `investment-portfolio-manager`; read via `portfolio_db_cursor()` / `get_portfolio_connection()` in `forecaster/db.py`
+- Connection via `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` env vars (see `.env.example`)
+- **Credentials go in `.env` only — never in code or committed config**
+- Cross-database queries not supported in PostgreSQL; `run_resolution.py` fetches positions separately via `portfolio_db_cursor()` and merges in Python
 
 ## Agent Conventions
 - All LLM-calling agents subclass `BaseAgent` (`forecaster/agents/base.py`); set `agent_id` and `model` as class attributes; implement `_parse_response()`

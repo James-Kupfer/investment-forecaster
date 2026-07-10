@@ -43,8 +43,8 @@ class BaseAgent(ABC):
         with db_cursor() as cursor:
             cursor.execute(
                 'SELECT id, prompt_text FROM prompt_registry '
-                'WHERE agent_id = ? AND is_active = 1',
-                self.agent_id,
+                'WHERE agent_id = %s AND is_active = TRUE',
+                (self.agent_id,),
             )
             row = cursor.fetchone()
         if not row:
@@ -108,10 +108,10 @@ class BaseAgent(ABC):
                 '(forecast_id, macro_state_id, agent_id, prompt_version_id, '
                 ' executing_model, tokens_in, tokens_out, tokens_cached, '
                 ' call_cost_usd, duration_ms, error, response_text) '
-                'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-                forecast_id, macro_state_id, result.agent_id, result.prompt_version_id,
-                result.model_id, result.tokens_in, result.tokens_out, result.tokens_cached,
-                result.call_cost_usd, result.duration_ms, result.error, result.response_text,
+                'VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)',
+                (forecast_id, macro_state_id, result.agent_id, result.prompt_version_id,
+                 result.model_id, result.tokens_in, result.tokens_out, result.tokens_cached,
+                 result.call_cost_usd, result.duration_ms, result.error, result.response_text),
             )
 
     @abstractmethod

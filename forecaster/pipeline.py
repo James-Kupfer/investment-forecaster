@@ -165,12 +165,13 @@ class ForecastPipeline:
         with db_cursor() as cur:
             cur.execute(
                 """
-                SELECT TOP 1 compound_conviction
+                SELECT compound_conviction
                 FROM forecasts
-                WHERE symbol = ? AND compound_conviction IS NOT NULL
+                WHERE symbol = %s AND compound_conviction IS NOT NULL
                 ORDER BY forecast_date DESC
+                LIMIT 1
                 """,
-                symbol,
+                (symbol,),
             )
             row = cur.fetchone()
             return float(row[0]) if row else None
@@ -178,8 +179,8 @@ class ForecastPipeline:
     def _get_thesis(self, symbol: str) -> str:
         with portfolio_db_cursor() as cur:
             cur.execute(
-                "SELECT investment_thesis FROM positions WHERE symbol = ?",
-                symbol,
+                "SELECT investment_thesis FROM positions WHERE symbol = %s",
+                (symbol,),
             )
             row = cur.fetchone()
             return (row[0] or "") if row else ""
@@ -189,12 +190,10 @@ class ForecastPipeline:
             cur.execute(
                 """
                 INSERT INTO forecasts (symbol, forecast_date, resolution_date)
-                OUTPUT INSERTED.id
-                VALUES (?, ?, ?)
+                VALUES (%s, %s, %s)
+                RETURNING id
                 """,
-                symbol,
-                forecast_date.isoformat(),
-                resolution_date.isoformat(),
+                (symbol, forecast_date.isoformat(), resolution_date.isoformat()),
             )
             row = cur.fetchone()
             if not row:

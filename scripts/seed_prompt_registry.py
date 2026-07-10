@@ -1,5 +1,5 @@
 """
-Seed substantive v1.1 prompts for all 14 pipeline agents into prompt_registry.
+Seed substantive v1.1 prompts for all pipeline agents into prompt_registry.
 
 Prompt text is loaded from forecaster/agents/{agent_id}.md files.
 Idempotent: skips any agent_id that already has an active prompt.
@@ -39,8 +39,8 @@ def seed() -> None:
         for stub in STUBS:
             agent_id = stub["agent_id"]
             cur.execute(
-                "SELECT COUNT(*) FROM prompt_registry WHERE agent_id = ? AND is_active = 1",
-                agent_id,
+                "SELECT COUNT(*) FROM prompt_registry WHERE agent_id = %s AND is_active = TRUE",
+                (agent_id,),
             )
             count = cur.fetchone()[0]
             if count > 0:
@@ -52,11 +52,9 @@ def seed() -> None:
                 """
                 INSERT INTO prompt_registry
                     (agent_id, prompt_version, prompt_text, authored_by_model, is_active)
-                VALUES (?, ?, ?, 'seed_v1.1', 1)
+                VALUES (%s, %s, %s, 'seed_v1.1', TRUE)
                 """,
-                agent_id,
-                stub["prompt_version"],
-                prompt_text,
+                (agent_id, stub["prompt_version"], prompt_text),
             )
             print(f"  seeded {agent_id} ({stub['prompt_version']})")
 
