@@ -85,16 +85,31 @@ Write-Host "  Written to $EnvFile"
 Write-Host ""
 Write-Host "[3/6] Creating databases (if they do not exist)..."
 
+# Locate psql if it is not already on PATH
+$psql = (Get-Command psql -ErrorAction SilentlyContinue)?.Source
+if (-not $psql) {
+    $candidates = Get-ChildItem "C:\Program Files\PostgreSQL" -Filter psql.exe -Recurse -ErrorAction SilentlyContinue |
+                  Sort-Object FullName -Descending |
+                  Select-Object -First 1
+    if ($candidates) {
+        $psql = $candidates.FullName
+        Write-Host "  Found psql at $psql"
+    } else {
+        Write-Error "psql not found. Add PostgreSQL\bin to PATH or install PostgreSQL."
+        exit 1
+    }
+}
+
 $Env:PGPASSWORD = $PgPassword
 
 foreach ($DbName in @("investment_forecaster", "investment_portfolio")) {
     $CheckSql = "SELECT 1 FROM pg_database WHERE datname='" + $DbName + "'"
-    $Exists = psql -U $PgUser -h $PgHost -tAc $CheckSql postgres 2>$null
+    $Exists = & $psql -U $PgUser -h $PgHost -tAc $CheckSql postgres 2>$null
     if ($Exists -eq "1") {
         Write-Host "  $DbName already exists, skipping"
     } else {
         $CreateSql = "CREATE DATABASE " + $DbName + ";"
-        psql -U $PgUser -h $PgHost -c $CreateSql postgres
+        & $psql -U $PgUser -h $PgHost -c $CreateSql postgres
         Write-Host "  Created $DbName"
     }
 }
@@ -105,7 +120,7 @@ foreach ($DbName in @("investment_forecaster", "investment_portfolio")) {
 Write-Host ""
 Write-Host "[4/6] Applying schema to investment_forecaster..."
 
-psql -U $PgUser -h $PgHost -d investment_forecaster -f $SchemaFile
+& $psql -U $PgUser -h $PgHost -d investment_forecaster -f $SchemaFile
 Write-Host "  Schema applied"
 
 # ---------------------------------------------------------------------------
