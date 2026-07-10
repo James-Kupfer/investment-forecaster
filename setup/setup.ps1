@@ -8,7 +8,7 @@ $ErrorActionPreference = "Stop"
 $RepoRoot      = Split-Path $PSScriptRoot -Parent
 $SecretsDir    = "C:\Users\james\GitHub\Secrets"
 $PgSecretsFile = Join-Path $SecretsDir "postgres.py"
-$AnthropicFile = Join-Path $SecretsDir "anthropic.key"
+$AnthropicFile = Join-Path $SecretsDir "anthropic.py"
 $EnvFile       = Join-Path $RepoRoot ".env"
 $SchemaFile    = Join-Path $RepoRoot "setup\create_schema_postgres.sql"
 
@@ -32,7 +32,7 @@ $PgUser     = python -c "import sys; sys.path.insert(0, r'$SecretsDir'); from po
 $PgPassword = python -c "import sys; sys.path.insert(0, r'$SecretsDir'); from postgres import postgres_password; print(postgres_password)"
 $PgHost     = python -c "import sys; sys.path.insert(0, r'$SecretsDir'); from postgres import dsn; print(dsn)"
 
-$AnthropicKey = (Get-Content $AnthropicFile | Select-String "ANTHROPIC_API_KEY\s*=\s*'([^']+)'").Matches.Groups[1].Value
+$AnthropicKey = python -c "import sys; sys.path.insert(0, r'$SecretsDir'); from anthropic import ANTHROPIC_API_KEY; print(ANTHROPIC_API_KEY)"
 
 if (-not $PgUser -or -not $PgPassword -or -not $PgHost) {
     Write-Error "Failed to read Postgres credentials from $PgSecretsFile"
