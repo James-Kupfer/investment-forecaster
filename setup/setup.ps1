@@ -1,37 +1,45 @@
 # investment-forecaster setup script
-# Reads Postgres credentials from C:\Users\james\GitHub\Secrets\postgres.py
+# Reads credentials from C:\Users\james\GitHub\Secrets\
 # Run from the repo root:  .\setup\setup.ps1
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-$RepoRoot  = Split-Path $PSScriptRoot -Parent
-$SecretsFile = "C:\Users\james\GitHub\Secrets\postgres.py"
-$EnvFile   = Join-Path $RepoRoot ".env"
-$SchemaFile = Join-Path $RepoRoot "setup\create_schema_postgres.sql"
+$RepoRoot      = Split-Path $PSScriptRoot -Parent
+$SecretsDir    = "C:\Users\james\GitHub\Secrets"
+$PgSecretsFile = Join-Path $SecretsDir "postgres.py"
+$AnthropicFile = Join-Path $SecretsDir "anthropic.key"
+$EnvFile       = Join-Path $RepoRoot ".env"
+$SchemaFile    = Join-Path $RepoRoot "setup\create_schema_postgres.sql"
 
 Write-Host "`n=== investment-forecaster setup ===" -ForegroundColor Cyan
 
 # ---------------------------------------------------------------------------
 # 1. Read Postgres credentials from secrets file
 # ---------------------------------------------------------------------------
-Write-Host "`n[1/6] Reading credentials from $SecretsFile..."
+Write-Host "`n[1/6] Reading credentials from $SecretsDir..."
 
-if (-not (Test-Path $SecretsFile)) {
-    Write-Error "Secrets file not found: $SecretsFile"
-    exit 1
+foreach ($f in @($PgSecretsFile, $AnthropicFile)) {
+    if (-not (Test-Path $f)) { Write-Error "Secrets file not found: $f"; exit 1 }
 }
 
-$PgUser     = python -c "import sys; sys.path.insert(0, r'C:\Users\james\GitHub\Secrets'); from postgres import postgres_user; print(postgres_user)"
-$PgPassword = python -c "import sys; sys.path.insert(0, r'C:\Users\james\GitHub\Secrets'); from postgres import postgres_password; print(postgres_password)"
-$PgHost     = python -c "import sys; sys.path.insert(0, r'C:\Users\james\GitHub\Secrets'); from postgres import dsn; print(dsn)"
+$PgUser     = python -c "import sys; sys.path.insert(0, r'$SecretsDir'); from postgres import postgres_user; print(postgres_user)"
+$PgPassword = python -c "import sys; sys.path.insert(0, r'$SecretsDir'); from postgres import postgres_password; print(postgres_password)"
+$PgHost     = python -c "import sys; sys.path.insert(0, r'$SecretsDir'); from postgres import dsn; print(dsn)"
+
+# anthropic.key is not importable by name — parse the assignment directly
+$AnthropicKey = (Get-Content $AnthropicFile | Select-String "ANTHROPIC_API_KEY\s*=\s*'([^']+)'").Matches.Groups[1].Value
 
 if (-not $PgUser -or -not $PgPassword -or -not $PgHost) {
-    Write-Error "Failed to read credentials from $SecretsFile"
+    Write-Error "Failed to read Postgres credentials from $PgSecretsFile"
+    exit 1
+}
+if (-not $AnthropicKey) {
+    Write-Error "Failed to read ANTHROPIC_API_KEY from $AnthropicFile"
     exit 1
 }
 
-Write-Host "  user=$PgUser  host=$PgHost  OK"
+Write-Host "  user=$PgUser  host=$PgHost  anthropic key OK"
 
 # ---------------------------------------------------------------------------
 # 2. Write .env
@@ -49,8 +57,8 @@ DB_PASSWORD=$PgPassword
 # Portfolio database (managed by investment-portfolio-manager)
 PORTFOLIO_DB_NAME=investment_portfolio
 
-# Anthropic API — fill in your key
-ANTHROPIC_API_KEY=
+# Anthropic API
+ANTHROPIC_API_KEY=$AnthropicKey
 
 # IBKR Client Portal Gateway
 IBKR_GATEWAY_URL=https://localhost:5000
@@ -100,5 +108,5 @@ Write-Host "`n[6/6] Seeding prompt registry..."
 python scripts/seed_prompt_registry.py
 
 Write-Host "`n=== Setup complete ===" -ForegroundColor Green
-Write-Host "Fill in ANTHROPIC_API_KEY in $EnvFile, then run:"
+Write-Host "Run a forecast with:"
 Write-Host "  python scripts/run_forecasts.py --symbol AAPL" -ForegroundColor Yellow
