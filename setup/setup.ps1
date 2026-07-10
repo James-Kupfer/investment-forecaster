@@ -12,22 +12,26 @@ $AnthropicFile = Join-Path $SecretsDir "anthropic.key"
 $EnvFile       = Join-Path $RepoRoot ".env"
 $SchemaFile    = Join-Path $RepoRoot "setup\create_schema_postgres.sql"
 
-Write-Host "`n=== investment-forecaster setup ===" -ForegroundColor Cyan
+Write-Host ""
+Write-Host "=== investment-forecaster setup ===" -ForegroundColor Cyan
 
 # ---------------------------------------------------------------------------
-# 1. Read Postgres credentials from secrets file
+# 1. Read credentials from secrets files
 # ---------------------------------------------------------------------------
-Write-Host "`n[1/6] Reading credentials from $SecretsDir..."
+Write-Host ""
+Write-Host "[1/6] Reading credentials from $SecretsDir..."
 
 foreach ($f in @($PgSecretsFile, $AnthropicFile)) {
-    if (-not (Test-Path $f)) { Write-Error "Secrets file not found: $f"; exit 1 }
+    if (-not (Test-Path $f)) {
+        Write-Error "Secrets file not found: $f"
+        exit 1
+    }
 }
 
 $PgUser     = python -c "import sys; sys.path.insert(0, r'$SecretsDir'); from postgres import postgres_user; print(postgres_user)"
 $PgPassword = python -c "import sys; sys.path.insert(0, r'$SecretsDir'); from postgres import postgres_password; print(postgres_password)"
 $PgHost     = python -c "import sys; sys.path.insert(0, r'$SecretsDir'); from postgres import dsn; print(dsn)"
 
-# anthropic.key is not importable by name — parse the assignment directly
 $AnthropicKey = (Get-Content $AnthropicFile | Select-String "ANTHROPIC_API_KEY\s*=\s*'([^']+)'").Matches.Groups[1].Value
 
 if (-not $PgUser -or -not $PgPassword -or -not $PgHost) {
@@ -44,40 +48,42 @@ Write-Host "  user=$PgUser  host=$PgHost  anthropic key OK"
 # ---------------------------------------------------------------------------
 # 2. Write .env
 # ---------------------------------------------------------------------------
-Write-Host "`n[2/6] Writing $EnvFile..."
+Write-Host ""
+Write-Host "[2/6] Writing $EnvFile..."
 
-$EnvContent = @"
-# PostgreSQL connection
-DB_HOST=$PgHost
-DB_PORT=5432
-DB_NAME=investment_forecaster
-DB_USER=$PgUser
-DB_PASSWORD=$PgPassword
+$EnvLines = @(
+    "# PostgreSQL connection",
+    "DB_HOST=$PgHost",
+    "DB_PORT=5432",
+    "DB_NAME=investment_forecaster",
+    "DB_USER=$PgUser",
+    "DB_PASSWORD=$PgPassword",
+    "",
+    "# Portfolio database (managed by investment-portfolio-manager)",
+    "PORTFOLIO_DB_NAME=investment_portfolio",
+    "",
+    "# Anthropic API",
+    "ANTHROPIC_API_KEY=$AnthropicKey",
+    "",
+    "# IBKR Client Portal Gateway",
+    "IBKR_GATEWAY_URL=https://localhost:5000"
+)
+$EnvLines | Set-Content -Path $EnvFile -Encoding UTF8
 
-# Portfolio database (managed by investment-portfolio-manager)
-PORTFOLIO_DB_NAME=investment_portfolio
-
-# Anthropic API
-ANTHROPIC_API_KEY=$AnthropicKey
-
-# IBKR Client Portal Gateway
-IBKR_GATEWAY_URL=https://localhost:5000
-"@
-
-Set-Content -Path $EnvFile -Value $EnvContent -Encoding UTF8
 Write-Host "  Written to $EnvFile"
 
 # ---------------------------------------------------------------------------
 # 3. Create databases
 # ---------------------------------------------------------------------------
-Write-Host "`n[3/6] Creating databases (if they do not exist)..."
+Write-Host ""
+Write-Host "[3/6] Creating databases (if they do not exist)..."
 
 $Env:PGPASSWORD = $PgPassword
 
 foreach ($DbName in @("investment_forecaster", "investment_portfolio")) {
     $Exists = psql -U $PgUser -h $PgHost -tAc "SELECT 1 FROM pg_database WHERE datname='$DbName'" postgres 2>$null
     if ($Exists -eq "1") {
-        Write-Host "  $DbName already exists — skip"
+        Write-Host "  $DbName already exists, skipping"
     } else {
         psql -U $PgUser -h $PgHost -c "CREATE DATABASE $DbName;" postgres
         Write-Host "  Created $DbName"
@@ -87,7 +93,8 @@ foreach ($DbName in @("investment_forecaster", "investment_portfolio")) {
 # ---------------------------------------------------------------------------
 # 4. Apply schema to investment_forecaster
 # ---------------------------------------------------------------------------
-Write-Host "`n[4/6] Applying schema to investment_forecaster..."
+Write-Host ""
+Write-Host "[4/6] Applying schema to investment_forecaster..."
 
 psql -U $PgUser -h $PgHost -d investment_forecaster -f $SchemaFile
 Write-Host "  Schema applied"
@@ -95,7 +102,8 @@ Write-Host "  Schema applied"
 # ---------------------------------------------------------------------------
 # 5. Install Python dependencies
 # ---------------------------------------------------------------------------
-Write-Host "`n[5/6] Installing Python dependencies..."
+Write-Host ""
+Write-Host "[5/6] Installing Python dependencies..."
 
 Set-Location $RepoRoot
 pip install -r requirements.txt
@@ -103,10 +111,12 @@ pip install -r requirements.txt
 # ---------------------------------------------------------------------------
 # 6. Seed prompt registry
 # ---------------------------------------------------------------------------
-Write-Host "`n[6/6] Seeding prompt registry..."
+Write-Host ""
+Write-Host "[6/6] Seeding prompt registry..."
 
 python scripts/seed_prompt_registry.py
 
-Write-Host "`n=== Setup complete ===" -ForegroundColor Green
+Write-Host ""
+Write-Host "=== Setup complete ===" -ForegroundColor Green
 Write-Host "Run a forecast with:"
 Write-Host "  python scripts/run_forecasts.py --symbol AAPL" -ForegroundColor Yellow
