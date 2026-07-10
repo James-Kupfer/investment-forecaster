@@ -86,7 +86,8 @@ Write-Host ""
 Write-Host "[3/6] Creating databases (if they do not exist)..."
 
 # Locate psql if it is not already on PATH
-$psql = (Get-Command psql -ErrorAction SilentlyContinue)?.Source
+$psqlCmd = Get-Command psql -ErrorAction SilentlyContinue
+$psql = if ($psqlCmd) { $psqlCmd.Source } else { $null }
 if (-not $psql) {
     $candidates = Get-ChildItem "C:\Program Files\PostgreSQL" -Filter psql.exe -Recurse -ErrorAction SilentlyContinue |
                   Sort-Object FullName -Descending |
