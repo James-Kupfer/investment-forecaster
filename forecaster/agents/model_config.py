@@ -1,34 +1,64 @@
-# Single source of truth for agent-to-model assignments.
-# To swap a model, edit this file only — no agent file needs to change.
+# Single source of truth for agent-to-model assignments. Every LLM-calling
+# agent's model comes from here ONLY — individual agent files declare no
+# model default of their own (BaseAgent.__init__ requires the agent_id to be
+# listed here and raises if it's missing, rather than silently falling back
+# to a stale per-file default). To swap a model, edit this file only.
+#
+# Listed in pipeline execution order (see
+# C:\Users\james\.claude\plans\i-updated-the-list-wise-pnueli.md — Stages A-D).
+# Currently Haiku across the board for test purposes.
+#
+# TriageAgent is not listed: it's a pure Python threshold gate with no LLM
+# call. PatternAgent was removed (dead code — never invoked by the pipeline).
 AGENT_MODELS: dict[str, str] = {
-    # 1. Triage gate: decides whether a position warrants a full forecast run.
-    "triage":              "claude-haiku-4-5-20251001",
-    # 2. Question definer: converts the investment thesis into a precise, binary, time-bounded forecasting question.
-    "question_definition": "claude-haiku-4-5-20251001",
-    # 3. Macro analyst: builds a decision tree from VIX, DXY, rates, and sector ETF signals.
-    "macroq":              "claude-haiku-4-5-20251001",
-    # 4. Risk judge: identifies tail risks and sets the systematic downside floor (invq2_floor).
-    "risk_judge":          "claude-haiku-4-5-20251001",
-    # 5a. Earnings analyst: assesses earnings trajectory, FCF quality, and beat/miss trend. [parallel]
+    # --- Stage A: decompose (once) ---
+    # Extracts up to 7 Critical/High-impact catalyst/risk sub-questions (each
+    # resolvable within 12 months) from the position's thesis and risk
+    # profile. Does not classify long/short — stance is an aggregation output.
+    "question_definition": "claude-opus-4-8",
+
+    # --- Stage B: shared symbol-level evidence (once) ---
+    # Macro analyst: builds a decision tree from VIX, DXY, rates, and sector
+    # ETF signals; shared context for every sub-question.
+    "macroq":              "claude-opus-4-8",
+    # Symbol-level downside-floor backstop: base-rate risk floor, plus a
+    # scale-aware judgment of whether the sub-question density found in
+    # decomposition is unusual for a company of this size.
+    "risk_judge":          "claude-sonnet-5",
+    # Financial evidence specialist: earnings trajectory, FCF quality,
+    # beat/miss trend. Primary evidence for sub-questions tagged
+    # evidence_source=earnings. [parallel with primary_source]
     "earnings":            "claude-haiku-4-5-20251001",
-    # 5b. Primary source analyst: weighs earnings transcripts, filings, and guidance for or against the thesis. [parallel]
+    # Primary-source evidence specialist: filings, transcripts, guidance.
+    # Primary evidence for sub-questions tagged evidence_source=primary_source.
+    # [parallel with earnings]
     "primary_source":      "claude-haiku-4-5-20251001",
-    # 6a. Momentum analyst: interprets RSI and MACD to classify the momentum regime. [parallel]
+    # Technical analyst: RSI/MACD momentum regime. [parallel with trend, volume]
     "momentum":            "claude-haiku-4-5-20251001",
-    # 6b. Trend analyst: evaluates moving-average alignment and ADX to classify the trend regime. [parallel]
+    # Technical analyst: moving-average alignment and ADX trend regime.
+    # [parallel with momentum, volume]
     "trend":               "claude-haiku-4-5-20251001",
-    # 6c. Volume analyst: determines whether volume confirms or diverges from the prevailing trend. [parallel]
+    # Technical analyst: whether volume confirms or diverges from trend.
+    # [parallel with momentum, trend]
     "volume":              "claude-haiku-4-5-20251001",
-    # 6d. Pattern analyst: identifies chart patterns and key price levels from TA context. [parallel]
-    "pattern":             "claude-haiku-4-5-20251001",
-    # 6e. Technical judge: synthesises momentum, trend, volume, and pattern signals into a single technical verdict.
+    # Technical judge: synthesizes momentum/trend/volume into one verdict.
+    # Primary evidence for sub-questions tagged evidence_source=technical.
     "tech_judge":          "claude-haiku-4-5-20251001",
-    # 7. Superforecaster: applies inside view, outside view, pre-mortem, and reference class to produce an initial probability.
-    "elicitation":         "claude-haiku-4-5-20251001",
-    # 8. Bias reviewer: checks the elicitation output for overconfidence, anchoring, or missing evidence.
-    "review":              "claude-haiku-4-5-20251001",
-    # 9. Probability calibrator: applies shrinkage, confidence intervals, and sizing haircut to the elicited estimate.
+
+    # --- Stage C: per-sub-question forecast (N <= 7, fanned out in parallel) ---
+    # Superforecaster: forecasts ONE sub-question via inside view, outside
+    # view, pre-mortem, reference class. Runs once per surviving sub-question.
+    "elicitation":         "claude-sonnet-5",
+    # Bias reviewer: devil's-advocate critique of one sub-question's
+    # elicitation, scoped to that question only — never the whole thesis.
+    "review":              "claude-sonnet-5",
+    # Probability calibrator: shrinkage, confidence interval, and rationale
+    # for one sub-question's final calibrated probability.
     "confidence_judge":    "claude-haiku-4-5-20251001",
-    # 10. Final synthesiser: merges all agent outputs into upside/downside probabilities and a committee summary.
-    "aggregation":         "claude-haiku-4-5-20251001",
+
+    # --- Stage D: aggregate (once) ---
+    # Final decision agent: grades each sub-question's rationale quality,
+    # proposes a bounded (+/-0.30) adjustment to the code-computed mechanical
+    # expected-value score, and issues the buy/sell/hold/pass recommendation.
+    "aggregation":         "claude-opus-4-8",
 }

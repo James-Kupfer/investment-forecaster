@@ -8,9 +8,16 @@ import anthropic
 from forecaster.db import db_cursor
 
 # (input_per_mtok, output_per_mtok, cached_input_per_mtok)
+# NOTE: claude-sonnet-5 rate below is carried over from the old claude-sonnet-4-6
+# entry as a placeholder — verify against Anthropic's current pricing page.
 _PRICING: dict[str, tuple[float, float, float]] = {
-    'claude-sonnet-4-6':          (3.00, 15.00, 0.30),
+    'claude-sonnet-5':            (3.00, 15.00, 0.30),
     'claude-haiku-4-5-20251001':  (1.00,  5.00, 0.10),
+    # Opus historically prices at ~5x Sonnet on both input and output; cached
+    # input follows the same 10%-of-input pattern used for the other two rows.
+    # Not yet confirmed against Anthropic's current published rate for this
+    # specific model — verify before treating logged costs as exact.
+    'claude-opus-4-8':            (15.00, 75.00, 1.50),
 }
 
 
@@ -30,13 +37,22 @@ class AgentResult:
 
 
 class BaseAgent(ABC):
+    """agent_id must be set by every subclass. model is NOT declared by
+    subclasses — model_config.py's AGENT_MODELS is the sole owner of model
+    assignment; every agent_id must be listed there (see
+    C:\\Users\\james\\.claude\\plans\\i-updated-the-list-wise-pnueli.md)."""
+
     agent_id: str
     model: str
 
     def __init__(self) -> None:
         from forecaster.agents.model_config import AGENT_MODELS
-        if self.agent_id in AGENT_MODELS:
-            self.model = AGENT_MODELS[self.agent_id]
+        if self.agent_id not in AGENT_MODELS:
+            raise ValueError(
+                f'No model configured for agent_id "{self.agent_id}" in '
+                f'forecaster/agents/model_config.py — add it before instantiating this agent.'
+            )
+        self.model = AGENT_MODELS[self.agent_id]
         self.client = anthropic.Anthropic()
 
     def get_active_prompt(self) -> tuple[int, str]:
@@ -50,6 +66,21 @@ class BaseAgent(ABC):
         if not row:
             raise ValueError(f'No active prompt for agent "{self.agent_id}"')
         return row[0], row[1]
+
+    @staticmethod
+    def extract_text_block(response) -> Optional[str]:
+        """Return the first actual text block's content. response.content[0]
+        is NOT reliably the text block — models with extended thinking
+        enabled (observed with claude-sonnet-5) return a ThinkingBlock first,
+        which has no .text attribute. Every agent's _parse_response must go
+        through this rather than indexing content[0] directly."""
+        if not response or not response.content:
+            return None
+        for block in response.content:
+            text = getattr(block, 'text', None)
+            if text is not None:
+                return text
+        return None
 
     def call(
         self,
@@ -68,7 +99,7 @@ class BaseAgent(ABC):
             if system:
                 params['system'] = system
             response = self.client.messages.create(**params)
-            raw_text = response.content[0].text if response.content else None
+            raw_text = self.extract_text_block(response)
             output = self._parse_response(response)
         except Exception as exc:
             error = str(exc)

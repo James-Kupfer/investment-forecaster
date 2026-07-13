@@ -60,3 +60,27 @@ def update_forecast_columns(forecast_id: int, **kwargs) -> None:
     values = list(kwargs.values()) + [forecast_id]
     with db_cursor() as cur:
         cur.execute(f"UPDATE forecasts SET {cols} WHERE id = %s", tuple(values))
+
+
+def insert_forecast_question(forecast_id: int, **kwargs) -> int:
+    """INSERT INTO forecast_questions (forecast_id, col, ...) VALUES (...) RETURNING id."""
+    cols = ["forecast_id"] + list(kwargs.keys())
+    values = [forecast_id] + list(kwargs.values())
+    placeholders = ", ".join(["%s"] * len(cols))
+    with db_cursor() as cur:
+        cur.execute(
+            f"INSERT INTO forecast_questions ({', '.join(cols)}) VALUES ({placeholders}) RETURNING id",
+            tuple(values),
+        )
+        row = cur.fetchone()
+    return int(row[0])
+
+
+def update_forecast_question_columns(question_id: int, **kwargs) -> None:
+    """UPDATE forecast_questions SET col=val, ... WHERE id=question_id."""
+    if not kwargs:
+        return
+    cols = ", ".join(f"{k} = %s" for k in kwargs)
+    values = list(kwargs.values()) + [question_id]
+    with db_cursor() as cur:
+        cur.execute(f"UPDATE forecast_questions SET {cols} WHERE id = %s", tuple(values))

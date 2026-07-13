@@ -1,6 +1,6 @@
 # investment-forecaster — Architecture
 
-Multi-agent LLM pipeline that applies Tetlock superforecaster discipline to investment positions. For each position it runs 13 agents in a defined sequence, producing calibrated probability estimates for upside and downside outcomes. Results are stored in SQL Server and scored via Brier scoring after resolution.
+Multi-agent LLM pipeline that applies Tetlock superforecaster discipline to investment positions. For each position it runs 13 agents in a defined sequence, producing calibrated probability estimates for upside and downside outcomes. Results are stored in PostgreSQL and scored via Brier scoring after resolution.
 
 ---
 
@@ -32,7 +32,6 @@ investment-forecaster/
 │           ├── momentum.py         # MomentumAgent
 │           ├── trend.py            # TrendAgent
 │           ├── volume.py           # VolumeAgent
-│           ├── pattern.py          # PatternAgent
 │           └── judge.py            # TechnicalJudgeAgent
 ├── scripts/
 │   ├── run_migrations.py           # Idempotent migration runner
@@ -55,9 +54,9 @@ Each agent also has a companion `.md` file in `forecaster/agents/` containing it
 
 ## Database
 
-**Instance:** `James-desktop\sqlexpress`  
-**Database:** `InvestmentForecaster`  
-**Auth:** Windows Authentication (`Trusted_Connection=yes`) — no credentials stored.
+**Host:** `localhost:5432`  
+**Database:** `investment_forecaster`  
+**Auth:** Postgres user/password via `DB_USER`/`DB_PASSWORD` env vars — credentials in `.env` only.
 
 ### Tables
 
@@ -151,11 +150,11 @@ PK: `(agent_id, question_type, model_id)`
 
 ### `forecaster/db.py`
 
-DB connection layer. Reads `DB_SERVER`, `DB_NAME`, `DB_DRIVER` from environment / `.env`.
+DB connection layer. Reads `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` from environment / `.env`.
 
 | Symbol | Description |
 |---|---|
-| `get_connection() → pyodbc.Connection` | Opens pyodbc connection with Windows Auth |
+| `get_connection() → psycopg2.extensions.connection` | Opens a psycopg2 connection to `investment_forecaster` |
 | `db_cursor()` | Context manager: yields cursor, commits on exit, rolls back on exception, always closes connection |
 | `update_forecast_columns(forecast_id, **kwargs)` | Builds `UPDATE forecasts SET col=? ... WHERE id=?` dynamically from kwargs; no-op if kwargs empty |
 
@@ -262,7 +261,7 @@ Each agent's `run()` method calls `get_active_prompt()`, builds messages, calls 
 - **Input:** `symbol`, `tech_context: dict`, `forecast_id`, `macro_state_id`
 - **Output fields:** `momentum_signal`, `rsi_value`, `macd_signal`, `roc`, `confidence`, `rationale`
 - **DB writes:** `forecasts` — momentum columns
-- **Runs parallel with** Trend, Volume, Pattern
+- **Runs parallel with** Trend, Volume
 
 #### `TrendAgent`
 - **agent_id:** `trend` | **model:** `claude-sonnet-4-6`
@@ -276,15 +275,9 @@ Each agent's `run()` method calls `get_active_prompt()`, builds messages, calls 
 - **Output fields:** `volume_signal`, `confidence`, `rationale`
 - **DB writes:** `forecasts` — volume columns
 
-#### `PatternAgent`
-- **agent_id:** `pattern` | **model:** `claude-sonnet-4-6`
-- **Input:** `symbol`, `tech_context`, `forecast_id`, `macro_state_id`
-- **Output fields:** `pattern_signal`, `key_level`, `reliability`, `confidence`, `rationale`
-- **DB writes:** `forecasts` — pattern columns
-
 #### `TechnicalJudgeAgent`
 - **agent_id:** `tech_judge` | **model:** `claude-sonnet-4-6`
-- **Input:** `tech_results: list[AgentResult]` (momentum, trend, volume, pattern outputs), `forecast_id`, `macro_state_id`
+- **Input:** `tech_results: list[AgentResult]` (momentum, trend, volume outputs), `forecast_id`, `macro_state_id`
 - **Output fields:** `technical_signal`, `key_level`, `dissenting_signals`, `confidence`, `rationale`
 - **DB writes:** `forecasts` — technical judge columns
 
@@ -350,10 +343,9 @@ Each agent's `run()` method calls `get_active_prompt()`, builds messages, calls 
     ↓
 7a. MomentumAgent ─┐
 7b. TrendAgent    ─┤  (parallel)
-7c. VolumeAgent   ─┤
-7d. PatternAgent  ─┘
+7c. VolumeAgent   ─┘
     ↓
-8.  TechnicalJudgeAgent   — synthesises 4 technical signals
+8.  TechnicalJudgeAgent   — synthesises 3 technical signals
     ↓
 9.  ElicitationAgent      — Tetlock 4-step probability estimate
     ↓
@@ -423,17 +415,17 @@ Run: `python -m pytest`
 Steps:
 1. Checkout
 2. `pip install -r requirements.txt`
-3. `python scripts/run_migrations.py` — applies any new migrations to `InvestmentForecaster`
+3. `python scripts/run_migrations.py` — applies any new migrations to `investment_forecaster`
 4. `python scripts/seed_prompt_registry.py` — seeds prompts if not already present
 5. `python -m pytest`
 
-Environment: `DB_SERVER=James-desktop\sqlexpress`, `DB_NAME=InvestmentForecaster`, `ANTHROPIC_API_KEY` (from GitHub Actions secret).
+Environment: `DB_HOST=localhost`, `DB_NAME=investment_forecaster`, `ANTHROPIC_API_KEY` (from GitHub Actions secret).
 
 ---
 
 ## Cross-Repo Dependency
 
-`ForecastPipeline._get_thesis()` reads `investment_thesis` from the `positions` table in `InvestmentPortfolio` (managed by `investment-portfolio-manager`). This is a **cross-database read** on the same SQL Server instance. The pipeline also reads `upside_threshold` and `drawdown_threshold` from `positions` during resolution scoring.
+`ForecastPipeline._get_position_context()` reads `investment_thesis`, `hold_period`, `hold_period_rationale`, `financials`, `thesis_test_date`, `thesis_list`, `thesis_list_rationale`, `upside_threshold`, and `drawdown_threshold` from the `positions` table in `investment_portfolio` (managed by `investment-portfolio-manager`), via `portfolio_db_cursor()`. Cross-database queries aren't supported in PostgreSQL, so this is a **separate connection**, not a joined query — `run_resolution.py` similarly fetches positions separately and merges in Python.
 
 Run `investment-portfolio-manager` sync first to ensure positions are up to date before running forecasts.
 

@@ -55,7 +55,6 @@ def _fetch_macro_snapshot() -> dict:
 
 class MacroQAgent(BaseAgent):
     agent_id = "macroq"
-    model = "claude-sonnet-4-6"
 
     def run(
         self,
@@ -143,5 +142,5 @@ class MacroQAgent(BaseAgent):
         return root_db_id
 
     def _parse_response(self, response) -> dict:
-        text = response.content[0].text if response.content else ""
+        text = self.extract_text_block(response) or ""
         return extract_json(text)

@@ -34,7 +34,8 @@ def run_migrations() -> None:
 
     for mf in mig_files:
         sql = mf.read_text(encoding='utf-8').strip()
-        if not sql or sql.startswith('--'):
+        real_lines = [l for l in sql.splitlines() if l.strip() and not l.strip().startswith('--')]
+        if not real_lines:
             print(f'  skip  {mf.name} (no-op)')
             continue
         print(f'Applying {mf.name}...')

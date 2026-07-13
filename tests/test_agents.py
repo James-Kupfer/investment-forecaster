@@ -98,19 +98,40 @@ class TestTriageAgent:
         from forecaster.agents.triage import TriageAgent
         assert TriageAgent().run(0.10) is False
 
+    def test_gates_on_magnitude_not_sign(self):
+        """A strong prior SELL signal (negative adjusted_score) is just as
+        much reason to re-forecast as a strong BUY — triage gates on |score|,
+        not raw value (v2 decomposition model; see plan)."""
+        from forecaster.agents.triage import TriageAgent
+        assert TriageAgent().run(-0.50) is True
+        assert TriageAgent().run(-0.10) is False
+
 
 # ---------------------------------------------------------------------------
 # QuestionDefinitionAgent
 # ---------------------------------------------------------------------------
 
 class TestQuestionDefinitionAgent:
-    def test_parse_response_extracts_question(self):
+    """v2 decomposition agent — emits a list of catalyst/risk sub-questions,
+    not a single directional price question (see plan)."""
+
+    def test_parse_response_extracts_decomposition(self):
         from forecaster.agents.question_definition import QuestionDefinitionAgent
         agent = QuestionDefinitionAgent.__new__(QuestionDefinitionAgent)
-        resp = _make_anthropic_response('{"question": "Will AAPL hit $200?", "confidence": "high", "rationale": "x"}')
+        payload = json.dumps({
+            "questions": [
+                {"type": "catalyst", "question_text": "Will X happen?",
+                 "impact_magnitude": "critical", "impact_direction": "+"},
+            ],
+            "monitor_list": [{"description": "Y risk", "reason_excluded": "impact_below_high"}],
+            "nearterm_critical_high_count": 1,
+            "confidence": "medium",
+            "rationale": "x",
+        })
+        resp = _make_anthropic_response(payload)
         out = agent._parse_response(resp)
-        assert out["question"] == "Will AAPL hit $200?"
-        assert out["confidence"] == "high"
+        assert len(out["questions"]) == 1
+        assert out["nearterm_critical_high_count"] == 1
 
     def test_parse_response_empty_content(self):
         from forecaster.agents.question_definition import QuestionDefinitionAgent
@@ -118,6 +139,28 @@ class TestQuestionDefinitionAgent:
         resp = MagicMock()
         resp.content = []
         assert agent._parse_response(resp) == {}
+
+    def test_cap_questions_enforces_max_seven(self):
+        from forecaster.agents.question_definition import QuestionDefinitionAgent
+        nine_questions = [{"question_text": f"Q{i}"} for i in range(9)]
+        output = QuestionDefinitionAgent.cap_questions({
+            "questions": nine_questions,
+            "monitor_list": [],
+            "nearterm_critical_high_count": 9,
+        })
+        assert len(output["questions"]) == 7
+        assert output["questions"][0]["question_text"] == "Q0"
+
+    def test_cap_questions_under_limit_unchanged(self):
+        from forecaster.agents.question_definition import QuestionDefinitionAgent
+        three_questions = [{"question_text": f"Q{i}"} for i in range(3)]
+        output = QuestionDefinitionAgent.cap_questions({"questions": three_questions})
+        assert len(output["questions"]) == 3
+
+    def test_cap_questions_missing_key_defaults_empty(self):
+        from forecaster.agents.question_definition import QuestionDefinitionAgent
+        output = QuestionDefinitionAgent.cap_questions({})
+        assert output["questions"] == []
 
 
 # ---------------------------------------------------------------------------
@@ -160,6 +203,50 @@ class TestRiskJudgeAgent:
         out = agent._parse_response(resp)
         assert out["invq2_floor"] == 0.15
         assert len(out["risks"]) == 1
+
+    def test_parse_extracts_scale_adjusted_density_flag(self):
+        """New in v2: risk_judge's scale-aware density escalation (decision 5
+        in the plan) — a small company hitting the question cap is a stronger
+        signal than a conglomerate hitting it."""
+        from forecaster.agents.risk_judge import RiskJudgeAgent
+        agent = RiskJudgeAgent.__new__(RiskJudgeAgent)
+        payload = json.dumps({
+            "risks": [],
+            "invq2_floor": 0.10,
+            "scale_category": "small",
+            "scale_basis": "single-market, one segment",
+            "scale_adjusted_density_flag": True,
+            "confidence": "medium",
+            "rationale": "test",
+        })
+        resp = _make_anthropic_response(payload)
+        out = agent._parse_response(resp)
+        assert out["scale_adjusted_density_flag"] is True
+
+    def test_parse_extracts_inferred_leverage_and_event_driven_flags(self):
+        """market_cap_category/leverage_flag/event_driven_flag were never wired
+        as upstream inputs (confirmed dead); risk_judge now infers leverage
+        and event-dependence itself from thesis/business/financials text."""
+        from forecaster.agents.risk_judge import RiskJudgeAgent
+        agent = RiskJudgeAgent.__new__(RiskJudgeAgent)
+        payload = json.dumps({
+            "risks": [],
+            "invq2_floor": 0.15,
+            "scale_category": "mid",
+            "scale_basis": "regional, two segments",
+            "leverage_flag": True,
+            "leverage_basis": "financials cite 3.5x net debt/EBITDA",
+            "event_driven_flag": False,
+            "event_driven_basis": "thesis is a durable multi-year trend, not a binary event",
+            "scale_adjusted_density_flag": False,
+            "confidence": "medium",
+            "rationale": "test",
+        })
+        resp = _make_anthropic_response(payload)
+        out = agent._parse_response(resp)
+        assert out["leverage_flag"] is True
+        assert out["event_driven_flag"] is False
+        assert "net debt" in out["leverage_basis"]
 
 
 # ---------------------------------------------------------------------------
@@ -214,18 +301,166 @@ class TestReviewAgent:
 # ---------------------------------------------------------------------------
 
 class TestAggregationAgent:
-    def test_parse_probabilities(self):
+    """v2: mechanical expected-value score is always computed in code
+    (compute_mechanical_score), never by the LLM — these test the
+    deterministic backbone directly. The LLM's role (question_grades,
+    adjustment_delta, recommendation) is exercised via _parse_response and
+    the bounded clamp_adjustment/derive_recommendation helpers."""
+
+    def test_parse_response_extracts_decision(self):
         from forecaster.agents.aggregation import AggregationAgent
         agent = AggregationAgent.__new__(AggregationAgent)
         resp = _make_anthropic_response(json.dumps({
-            "upside_probability": 0.65,
-            "downside_probability": 0.20,
-            "compound_conviction": 0.55,
-            "asymmetry_ratio": 3.25,
-            "thesis_crux": "margin expansion",
-            "summary": "Positive outlook.",
+            "question_grades": [{"question_index": 0, "rationale_quality_score": 0.9,
+                                  "rationale_quality_notes": "well-evidenced"}],
+            "adjustment_delta": 0.05,
+            "score_adjustment_rationale": "minor correlation discount",
+            "recommendation": "buy",
+            "decision_rationale": "net positive expected impact",
             "confidence": "medium",
         }))
         out = agent._parse_response(resp)
-        assert out["upside_probability"] == 0.65
-        assert out["compound_conviction"] == 0.55
+        assert out["recommendation"] == "buy"
+        assert out["question_grades"][0]["rationale_quality_score"] == 0.9
+
+    def test_mechanical_score_all_catalysts_is_positive(self):
+        from forecaster.agents.aggregation import AggregationAgent
+        questions = [
+            {"final_probability": 0.8, "impact_magnitude": "critical", "impact_direction": "+"},
+            {"final_probability": 0.6, "impact_magnitude": "high", "impact_direction": "+"},
+        ]
+        score, upside, downside, ratio = AggregationAgent.compute_mechanical_score(questions)
+        assert score == 1.0
+        assert downside == 0.0
+        assert ratio is None  # guard against divide-by-zero when no downside exists
+
+    def test_mechanical_score_all_risks_is_negative(self):
+        from forecaster.agents.aggregation import AggregationAgent
+        questions = [
+            {"final_probability": 0.7, "impact_magnitude": "critical", "impact_direction": "-"},
+        ]
+        score, upside, downside, ratio = AggregationAgent.compute_mechanical_score(questions)
+        assert score == -1.0
+        assert upside == 0.0
+
+    def test_mechanical_score_mixed_weighs_by_severity(self):
+        from forecaster.agents.aggregation import AggregationAgent
+        # critical (weight 4) catalyst at p=0.5 vs high (weight 3) risk at p=0.5:
+        # upside = 2.0, downside = 1.5, net favors upside despite equal probability
+        questions = [
+            {"final_probability": 0.5, "impact_magnitude": "critical", "impact_direction": "+"},
+            {"final_probability": 0.5, "impact_magnitude": "high", "impact_direction": "-"},
+        ]
+        score, upside, downside, ratio = AggregationAgent.compute_mechanical_score(questions)
+        assert upside == 2.0
+        assert downside == 1.5
+        assert score > 0
+
+    def test_mechanical_score_empty_questions_is_neutral(self):
+        from forecaster.agents.aggregation import AggregationAgent
+        score, upside, downside, ratio = AggregationAgent.compute_mechanical_score([])
+        assert score == 0.0
+        assert ratio is None
+
+    def test_mechanical_score_ignores_medium_low_magnitude(self):
+        """Only high/critical carry a severity weight — medium/low should
+        never reach aggregation (decomposition filters them), but the
+        formula itself must not silently count them if one slips through."""
+        from forecaster.agents.aggregation import AggregationAgent
+        questions = [
+            {"final_probability": 0.9, "impact_magnitude": "medium", "impact_direction": "+"},
+        ]
+        score, upside, downside, ratio = AggregationAgent.compute_mechanical_score(questions)
+        assert upside == 0.0
+        assert score == 0.0
+
+    def test_clamp_adjustment_bounds_large_positive(self):
+        from forecaster.agents.aggregation import AggregationAgent
+        assert AggregationAgent.clamp_adjustment(0.9) == 0.30
+
+    def test_clamp_adjustment_bounds_large_negative(self):
+        from forecaster.agents.aggregation import AggregationAgent
+        assert AggregationAgent.clamp_adjustment(-0.9) == -0.30
+
+    def test_clamp_adjustment_passes_through_within_bounds(self):
+        from forecaster.agents.aggregation import AggregationAgent
+        assert AggregationAgent.clamp_adjustment(0.1) == 0.1
+
+    def test_clamp_adjustment_handles_malformed_input(self):
+        from forecaster.agents.aggregation import AggregationAgent
+        assert AggregationAgent.clamp_adjustment(None) == 0.0
+        assert AggregationAgent.clamp_adjustment("not a number") == 0.0
+
+    def test_recommendation_pass_when_no_questions(self):
+        """pass = insufficient scorable signal, distinct from hold = signal
+        exists and nets neutral (decision 4)."""
+        from forecaster.agents.aggregation import AggregationAgent
+        assert AggregationAgent.derive_recommendation([], 0.9, "buy") == "pass"
+
+    def test_recommendation_uses_llm_value_when_valid(self):
+        from forecaster.agents.aggregation import AggregationAgent
+        questions = [{"final_probability": 0.5}]
+        assert AggregationAgent.derive_recommendation(questions, 0.01, "sell") == "sell"
+
+    def test_recommendation_falls_back_to_threshold_when_llm_value_missing(self):
+        from forecaster.agents.aggregation import AggregationAgent
+        questions = [{"final_probability": 0.5}]
+        assert AggregationAgent.derive_recommendation(questions, 0.50, None) == "buy"
+        assert AggregationAgent.derive_recommendation(questions, -0.50, None) == "sell"
+        assert AggregationAgent.derive_recommendation(questions, 0.0, None) == "hold"
+
+    def test_recommendation_honors_shifted_thresholds(self):
+        """An asymmetric position's shifted thresholds should flip a call that
+        the base +/-0.35 thresholds would not (James's point: a 10x-upside
+        position justifies accepting more mechanical-score risk)."""
+        from forecaster.agents.aggregation import AggregationAgent
+        questions = [{"final_probability": 0.5}]
+        # 0.20 doesn't clear the base 0.35 buy bar...
+        assert AggregationAgent.derive_recommendation(questions, 0.20, None) == "hold"
+        # ...but does clear a shifted 0.15 buy bar for a highly asymmetric position.
+        assert AggregationAgent.derive_recommendation(
+            questions, 0.20, None, buy_threshold=0.15, sell_threshold=-0.55
+        ) == "buy"
+        # symmetric check on the sell side: -0.20 doesn't clear the base -0.35 sell bar...
+        assert AggregationAgent.derive_recommendation(questions, -0.20, None) == "hold"
+        # ...and a shifted -0.55 sell bar makes it even less likely to trigger sell.
+        assert AggregationAgent.derive_recommendation(
+            questions, -0.20, None, buy_threshold=0.15, sell_threshold=-0.55
+        ) == "hold"
+
+
+class TestComputeAsymmetryAdjustment:
+    """James's point: a stock that can move 10x in a year justifies accepting
+    more mechanical-score risk. asymmetric_rating is the investment-profile
+    skill's own categorical field (High/Medium/Low/No -- plausible ~1-year
+    return path: High=10x, Medium>=5x, Low>=1x, else No), not a boolean."""
+
+    def test_high_rating_hits_max_adjustment(self):
+        from forecaster.agents.aggregation import AggregationAgent
+        assert AggregationAgent.compute_asymmetry_adjustment("High") == 0.20
+
+    def test_medium_rating_is_half_of_high(self):
+        from forecaster.agents.aggregation import AggregationAgent
+        # Medium floor is 5x vs High's 10x reference -> half the max adjustment
+        assert AggregationAgent.compute_asymmetry_adjustment("Medium") == pytest.approx(0.10)
+
+    def test_low_rating_is_small(self):
+        from forecaster.agents.aggregation import AggregationAgent
+        # Low floor is 1x vs High's 10x reference -> a tenth of the max adjustment
+        assert AggregationAgent.compute_asymmetry_adjustment("Low") == pytest.approx(0.02)
+
+    def test_no_rating_yields_zero(self):
+        from forecaster.agents.aggregation import AggregationAgent
+        assert AggregationAgent.compute_asymmetry_adjustment("No") == 0.0
+
+    def test_missing_or_unrecognized_rating_yields_zero(self):
+        from forecaster.agents.aggregation import AggregationAgent
+        assert AggregationAgent.compute_asymmetry_adjustment(None) == 0.0
+        assert AggregationAgent.compute_asymmetry_adjustment("") == 0.0
+        assert AggregationAgent.compute_asymmetry_adjustment("Yes") == 0.0
+        assert AggregationAgent.compute_asymmetry_adjustment(True) == 0.0
+
+    def test_rating_is_case_insensitive(self):
+        from forecaster.agents.aggregation import AggregationAgent
+        assert AggregationAgent.compute_asymmetry_adjustment("high") == 0.20
+        assert AggregationAgent.compute_asymmetry_adjustment(" HIGH ") == 0.20

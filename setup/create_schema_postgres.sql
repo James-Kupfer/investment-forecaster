@@ -154,18 +154,68 @@ CREATE TABLE IF NOT EXISTS forecasts (
     invq2_rationale                 TEXT,
     invq2_model                     VARCHAR(100),
     invq2_prompt_version            INTEGER,
+    -- legacy single-question model (v1) — retained nullable for historical rows only;
+    -- the v2 decomposition pipeline (see forecast_questions below) never writes these
     compound_conviction             NUMERIC(5,4),
     asymmetry_ratio                 NUMERIC(8,4),
     recommendation                  VARCHAR(20),
     aggregation_output              TEXT,
-    -- resolution / brier scoring
+    -- resolution / brier scoring (legacy, v1 single-question)
     resolved                        BOOLEAN         NOT NULL DEFAULT FALSE,
     resolved_outcome                TEXT,
     brier_q1                        NUMERIC(8,6),
     brier_q2                        NUMERIC(8,6),
     brier_q3                        NUMERIC(8,6),
+    -- v2 decomposition pipeline: weighted-EV aggregation over forecast_questions
+    mechanical_score                NUMERIC(8,4),
+    adjusted_score                  NUMERIC(8,4),
+    score_adjustment_rationale      TEXT,
+    decision_rationale              TEXT,
+    expected_upside_impact          NUMERIC(8,4),
+    expected_downside_impact        NUMERIC(8,4),
+    upside_downside_ratio           NUMERIC(8,4),
+    monitor_list                    TEXT,
+    nearterm_critical_high_count    INTEGER,
+    scale_adjusted_density_flag     BOOLEAN,
+    asymmetry_adjustment            NUMERIC(8,4),
+    buy_threshold_used              NUMERIC(8,4),
+    sell_threshold_used             NUMERIC(8,4),
+    schema_version                  SMALLINT        DEFAULT 1,
     created_at                      TIMESTAMP       DEFAULT NOW()
 );
+
+-- forecast_questions: one row per decomposed sub-question (catalyst or risk), v2 pipeline.
+-- See C:\Users\james\.claude\plans\i-updated-the-list-wise-pnueli.md for full rationale.
+CREATE TABLE IF NOT EXISTS forecast_questions (
+    id                      SERIAL          PRIMARY KEY,
+    forecast_id             INTEGER         NOT NULL REFERENCES forecasts(id),
+    question_type           VARCHAR(20)     NOT NULL,
+    question_text           TEXT            NOT NULL,
+    resolution_criteria      TEXT,
+    resolution_date          DATE,
+    resolution_source        VARCHAR(20),
+    evidence_source          VARCHAR(20),
+    impact_direction         VARCHAR(1),
+    impact_magnitude         VARCHAR(20),
+    decomposition_rationale  TEXT,
+    elicitation_p            NUMERIC(5,4),
+    review_flag              BOOLEAN,
+    review_rationale         TEXT,
+    final_probability        NUMERIC(5,4),
+    confidence               VARCHAR(10),
+    model_id                 VARCHAR(100),
+    forecast_rationale       TEXT,
+    rationale_quality_score  NUMERIC(5,4),
+    rationale_quality_notes  TEXT,
+    question_output          TEXT,
+    resolved                 BOOLEAN         NOT NULL DEFAULT FALSE,
+    resolved_outcome         TEXT,
+    brier                    NUMERIC(8,6),
+    created_at               TIMESTAMP       DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_forecast_questions_forecast_id ON forecast_questions(forecast_id);
+CREATE INDEX IF NOT EXISTS idx_forecast_questions_unresolved ON forecast_questions(resolution_date) WHERE resolved = FALSE;
 
 CREATE TABLE IF NOT EXISTS llm_call_log (
     id                SERIAL          PRIMARY KEY,

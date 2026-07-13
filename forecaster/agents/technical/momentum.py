@@ -14,7 +14,6 @@ def _parse_rsi_value(rsi_desc: str) -> Optional[float]:
 
 class MomentumAgent(BaseAgent):
     agent_id = "momentum"
-    model = "claude-haiku-4-5-20251001"
 
     def run(
         self,
@@ -54,5 +53,5 @@ class MomentumAgent(BaseAgent):
         return result
 
     def _parse_response(self, response) -> dict:
-        text = response.content[0].text if response.content else ""
+        text = self.extract_text_block(response) or ""
         return extract_json(text)

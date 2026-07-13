@@ -8,7 +8,6 @@ from forecaster.utils import extract_json
 
 class VolumeAgent(BaseAgent):
     agent_id = "volume"
-    model = "claude-haiku-4-5-20251001"
 
     def run(
         self,
@@ -45,5 +44,5 @@ class VolumeAgent(BaseAgent):
         return result
 
     def _parse_response(self, response) -> dict:
-        text = response.content[0].text if response.content else ""
+        text = self.extract_text_block(response) or ""
         return extract_json(text)

@@ -8,7 +8,6 @@ from forecaster.utils import extract_json
 
 class TechnicalJudgeAgent(BaseAgent):
     agent_id = "tech_judge"
-    model = "claude-sonnet-4-6"
 
     def run(
         self,
@@ -49,5 +48,5 @@ class TechnicalJudgeAgent(BaseAgent):
         return result
 
     def _parse_response(self, response) -> dict:
-        text = response.content[0].text if response.content else ""
+        text = self.extract_text_block(response) or ""
         return extract_json(text)

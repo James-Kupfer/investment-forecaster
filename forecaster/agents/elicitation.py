@@ -2,48 +2,56 @@ import json
 from typing import Optional
 
 from forecaster.agents.base import BaseAgent, AgentResult
-from forecaster.db import update_forecast_columns
+from forecaster.db import update_forecast_question_columns
 from forecaster.utils import extract_json
 
 
 class ElicitationAgent(BaseAgent):
+    """Forecasts a single decomposed sub-question (see question_definition), not
+    the position's thesis as a whole. symbol_context is the shared Stage-B
+    evidence; primary_evidence is whichever specialist output the question's
+    evidence_source names, foregrounded as the primary input (see
+    C:\\Users\\james\\.claude\\plans\\i-updated-the-list-wise-pnueli.md)."""
+
     agent_id = "elicitation"
-    model = "claude-sonnet-4-6"
 
     def run(
         self,
         symbol: str,
-        question: str,
-        all_context: dict,
+        question: dict,
+        symbol_context: dict,
+        question_id: int,
         forecast_id: int,
+        position: Optional[dict] = None,
         macro_state_id: Optional[int] = None,
     ) -> AgentResult:
         _, system_prompt = self.get_active_prompt()
+        primary_evidence = symbol_context.get(question.get("evidence_source"), {})
         messages = [
             {
                 "role": "user",
                 "content": (
                     f"Symbol: {symbol}\n"
-                    f"Forecasting question: {question}\n\n"
-                    f"Prior agent outputs:\n{json.dumps(all_context, indent=2)}\n\n"
-                    "Apply inside view, outside view, pre-mortem, and reference class forecasting. "
+                    f"Sub-question: {json.dumps(question)}\n\n"
+                    f"Primary evidence ({question.get('evidence_source')}):\n"
+                    f"{json.dumps(primary_evidence, indent=2)}\n\n"
+                    f"Full symbol context:\n{json.dumps(symbol_context, indent=2)}\n\n"
+                    f"Position context: {json.dumps(position or {})}\n\n"
+                    "Apply inside view, outside view, pre-mortem, and reference class forecasting "
+                    "to THIS specific sub-question — not the position as a whole. "
                     "Output: initial_probability (0-1), confidence (high/medium/low), rationale."
                 ),
             }
         ]
         result = self.call(messages, system=system_prompt, max_tokens=8096)
         self.log_call(result, forecast_id=forecast_id, macro_state_id=macro_state_id)
-        update_forecast_columns(
-            forecast_id,
-            invq3_p=result.output.get("final_probability") or result.output.get("initial_probability"),
-            invq3_confidence=result.output.get("confidence"),
-            invq3_rationale=result.output.get("rationale"),
-            invq3_model=self.model,
-            invq3_prompt_version=result.prompt_version_id,
-            elicitation_output=json.dumps(result.output),
+        update_forecast_question_columns(
+            question_id,
+            elicitation_p=result.output.get("final_probability") or result.output.get("initial_probability"),
+            question_output=json.dumps(result.output),
         )
         return result
 
     def _parse_response(self, response) -> dict:
-        text = response.content[0].text if response.content else ""
+        text = self.extract_text_block(response) or ""
         return extract_json(text)
