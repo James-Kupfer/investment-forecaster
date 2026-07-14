@@ -98,7 +98,15 @@ class BaseAgent(ABC):
             params: dict = {'model': self.model, 'max_tokens': max_tokens, 'messages': messages}
             if system:
                 params['system'] = system
-            response = self.client.messages.create(**params)
+            # Streaming, not .create() -- the SDK refuses non-streaming requests
+            # it estimates could exceed 10 minutes (observed live once max_tokens
+            # was raised on Opus: "Streaming is required for operations that may
+            # take longer than 10 minutes"). Streaming avoids this unconditionally
+            # regardless of model/max_tokens, so every agent uses it, not just the
+            # large-budget ones. get_final_message() reassembles the same Message
+            # shape .create() would have returned (.content, .usage, etc.).
+            with self.client.messages.stream(**params) as stream:
+                response = stream.get_final_message()
             raw_text = self.extract_text_block(response)
             output = self._parse_response(response)
         except Exception as exc:

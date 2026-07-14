@@ -37,7 +37,11 @@ class ReviewAgent(BaseAgent):
                 ),
             }
         ]
-        result = self.call(messages, system=system_prompt, max_tokens=8096)
+        # Now on Sonnet, whose reasoning draws from this same max_tokens pool
+        # (no separate thinking budget) -- observed up to ~6.3k (78% of the old
+        # 8096 cap, the tightest margin of any agent short of an actual failure)
+        # on a real run, sized well above that for comfortable headroom.
+        result = self.call(messages, system=system_prompt, max_tokens=16000)
         self.log_call(result, forecast_id=forecast_id, macro_state_id=macro_state_id)
         flag = result.output.get("review_flag")
         review_flag = flag if isinstance(flag, bool) else None

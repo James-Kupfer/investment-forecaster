@@ -76,6 +76,30 @@ class TestExtractJson:
         from forecaster.utils import extract_json
         assert extract_json("no json here") == {}
 
+    def test_self_correction_prefers_last_complete_object(self):
+        """A model occasionally emits a draft object, narrates a
+        self-correction, then emits a second, complete object (observed live
+        on a real aggregation call) -- the last one is the intended answer,
+        not the abandoned draft."""
+        from forecaster.utils import extract_json
+        text = (
+            '{"recommendation": "sell", "confidence": "low"}\n'
+            '... correcting to the required schema:\n'
+            '{"recommendation": "hold", "confidence": "medium", "decision_rationale": "full text"}'
+        )
+        out = extract_json(text)
+        assert out["recommendation"] == "hold"
+        assert out["decision_rationale"] == "full text"
+
+    def test_truncated_json_falls_back_to_last_complete_candidate(self):
+        """If the response is cut off mid-object (token limit hit), there is
+        no complete top-level object to recover -- must not silently return a
+        spuriously-matched inner fragment; {} signals the caller to treat the
+        whole call as failed rather than partially/incorrectly populated."""
+        from forecaster.utils import extract_json
+        text = '{"question_grades": [{"question_index": 0, "score": 0.5}], "decision_rationale": "cut off mid'
+        assert extract_json(text) == {}
+
 
 # ---------------------------------------------------------------------------
 # TriageAgent

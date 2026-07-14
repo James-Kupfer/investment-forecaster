@@ -67,6 +67,26 @@ LLM Superforecaster — applies Tetlock superforecaster discipline to investment
 - **Credentials go in `.env` only — never in code or committed config**
 - Cross-database queries not supported in PostgreSQL; `run_resolution.py` fetches positions separately via `portfolio_db_cursor()` and merges in Python
 
+## Token budgets
+- Every agent's `max_tokens` is set generously above any observed real usage — truncation is a
+  silent-failure mode, not a loud one: `extract_json` returns whatever complete JSON object it can
+  find, so a cut-off response either loses just the fields after the cutoff (if an earlier complete
+  object exists) or returns `{}` entirely (if nothing closes). Two agents (`risk_judge`,
+  `aggregation`) were caught truncating mid-response on real LIN runs before their budgets were
+  raised — one of them (`risk_judge`) had no recoverable earlier draft and silently lost its entire
+  output for that run.
+- Agents on `claude-sonnet-5`/`claude-opus-4-8` (`question_definition`, `macroq`, `risk_judge`,
+  `elicitation`, `review`, `aggregation` as currently configured) need extra headroom: no `thinking`
+  param is set in `BaseAgent.call()`, so any extended-reasoning tokens these models produce draw
+  from the same `max_tokens` pool as the visible output, not a separate budget.
+- Opus was also observed, on the same live run, drafting a full JSON object, writing a
+  self-correcting narrative aside ("...correcting to the required schema:"), then emitting a
+  second complete object — effectively doubling total output tokens for a single call.
+  `extract_json` (`forecaster/utils.py`) handles this by preferring the last successfully-parsed
+  top-level object, not the first, but the token budget still has to cover both attempts.
+- If you change a prompt to ask for more detail (a new field, a longer rationale requirement),
+  re-check `max_tokens` for that agent — don't assume the existing budget still has headroom.
+
 ## Agent Conventions
 - All LLM-calling agents subclass `BaseAgent` (`forecaster/agents/base.py`); set `agent_id` as a class attribute and implement `_parse_response()`. Do NOT set `model` on the agent class — `forecaster/agents/model_config.py`'s `AGENT_MODELS` is the sole owner; `BaseAgent.__init__` raises if `agent_id` isn't listed there.
 - Every agent's `_parse_response()` must extract text via `self.extract_text_block(response)`, never `response.content[0].text` directly — models with extended thinking enabled (e.g. `claude-sonnet-5`) return a `ThinkingBlock` first, which has no `.text` attribute.

@@ -33,7 +33,7 @@ class TechnicalJudgeAgent(BaseAgent):
                 ),
             }
         ]
-        result = self.call(messages, system=system_prompt, max_tokens=1536)
+        result = self.call(messages, system=system_prompt, max_tokens=3000)
         self.log_call(result, forecast_id=forecast_id, macro_state_id=macro_state_id)
         update_forecast_columns(
             forecast_id,

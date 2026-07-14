@@ -53,7 +53,15 @@ class RiskJudgeAgent(BaseAgent):
                 ),
             }
         ]
-        result = self.call(messages, system=system_prompt, max_tokens=4096)
+        # 4096 was found (live LIN run) to sometimes truncate mid-string with no
+        # complete JSON object to recover -- this agent's 500-word rationale plus
+        # leverage/event-driven self-inference routinely needs more headroom, and
+        # unlike aggregation's self-correction case, a truncated risk_judge call
+        # has no earlier complete draft to fall back to: it silently loses the
+        # entire downside-floor/scale-density output for the position. Now on
+        # Sonnet, whose reasoning draws from this same max_tokens pool (no
+        # separate thinking budget) -- set generously above any observed usage.
+        result = self.call(messages, system=system_prompt, max_tokens=12000)
         self.log_call(result, forecast_id=forecast_id, macro_state_id=macro_state_id)
         update_forecast_columns(
             forecast_id,

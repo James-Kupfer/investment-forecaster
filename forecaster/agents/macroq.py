@@ -77,7 +77,11 @@ class MacroQAgent(BaseAgent):
                 ),
             }
         ]
-        result = self.call(messages, system=system_prompt, max_tokens=2048)
+        # 2048 was critically undersized (hit 94% of cap on a real run) and this
+        # agent now runs on Opus, whose reasoning draws from the same max_tokens
+        # pool as its visible output (no separate thinking budget is set) --
+        # generous headroom here specifically to avoid silent truncation.
+        result = self.call(messages, system=system_prompt, max_tokens=10000)
         self.log_call(result, forecast_id=forecast_id)
 
         root_db_id = self._persist_tree(result, prompt_version_id)

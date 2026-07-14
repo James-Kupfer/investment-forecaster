@@ -178,8 +178,12 @@ class AggregationAgent(BaseAgent):
         # times up to 7 questions, plus score_adjustment_rationale and
         # decision_rationale, routinely exceeds it. Truncated JSON silently loses
         # whatever fields come after the cutoff (recommendation has a mechanical
-        # fallback via derive_recommendation; decision_rationale does not).
-        result = self.call(messages, system=system_prompt, max_tokens=20000)
+        # fallback via derive_recommendation; decision_rationale does not). This
+        # agent is now on Opus, which was separately observed (same live run) to
+        # sometimes draft a JSON object, self-correct with narrative text, then
+        # emit a second complete object -- effectively doubling total output for
+        # a single call. Sized well above that worst case for a full 7-question set.
+        result = self.call(messages, system=system_prompt, max_tokens=32000)
         self.log_call(result, forecast_id=forecast_id, macro_state_id=macro_state_id)
 
         delta = self.clamp_adjustment(result.output.get("adjustment_delta"))

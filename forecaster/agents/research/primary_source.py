@@ -63,7 +63,7 @@ class PrimarySourceAgent(BaseAgent):
                 ),
             }
         ]
-        result = self.call(messages, system=system_prompt, max_tokens=4096)
+        result = self.call(messages, system=system_prompt, max_tokens=8000)
         self.log_call(result, forecast_id=forecast_id, macro_state_id=macro_state_id)
         update_forecast_columns(
             forecast_id,
