@@ -1,4 +1,4 @@
-"""Loads credentials directly from the shared C:\\Users\\james\\GitHub\\Secrets
+"""Loads credentials directly from the shared C:\\Users\\James Kupfer\\GitHub\\Secrets
 folder — the single source of truth used across all of James's repos. No .env
 file is used for secrets; this avoids each repo carrying its own duplicated
 copy of the same Postgres password / Anthropic API key.
@@ -10,7 +10,7 @@ anthropic`) because Secrets\\Anthropic.py would otherwise shadow the real
 import importlib.util
 import os
 
-_SECRETS_DIR = r"C:\Users\james\GitHub\Secrets"
+_SECRETS_DIR = r"C:\Users\James Kupfer\GitHub\Secrets"
 
 
 def _load_module(filename: str, module_name: str):
@@ -27,11 +27,11 @@ def _load() -> None:
     os.environ.setdefault("DB_USER", pg.postgres_user)
     os.environ.setdefault("DB_PASSWORD", pg.postgres_password)
 
-    anth = _load_module("Anthropic.py", "_secrets_anthropic")
+    anth = _load_module("api_key.py", "_secrets_anthropic")
     os.environ.setdefault("ANTHROPIC_API_KEY", anth.ANTHROPIC_API_KEY)
 
-    sec = _load_module("SEC.py", "_secrets_sec")
-    os.environ.setdefault("SEC_EDGAR_USER_AGENT", sec.SEC_EDGAR_USER_AGENT)
+    sec = _load_module("sec_id.py", "_secrets_sec")
+    os.environ.setdefault("SEC_EDGAR_USER_AGENT", sec.SEC_USER_AGENT)
 
 
 _load()
