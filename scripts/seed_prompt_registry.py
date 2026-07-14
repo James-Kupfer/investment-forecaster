@@ -1,7 +1,7 @@
 """
 Seed substantive v1.1 prompts for all pipeline agents into prompt_registry.
 
-Prompt text is loaded from forecaster/agents/{agent_id}.md files.
+Prompt text is loaded from personas/{agent_id}.md files.
 Idempotent: skips any agent_id that already has an active prompt.
 Run once after migrations, or whenever a new agent is added.
 """
@@ -14,7 +14,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from forecaster.db import db_cursor
 
-AGENTS_DIR = Path(__file__).resolve().parent.parent / "forecaster" / "agents"
+AGENTS_DIR = Path(__file__).resolve().parent.parent / "personas"
 
 STUBS: list[dict] = [
     {"agent_id": "question_definition", "prompt_version": "v1.1"},

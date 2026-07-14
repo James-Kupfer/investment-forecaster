@@ -39,19 +39,19 @@ class AgentResult:
 
 class BaseAgent(ABC):
     """agent_id must be set by every subclass. model is NOT declared by
-    subclasses — model_config.py's AGENT_MODELS is the sole owner of model
-    assignment; every agent_id must be listed there (see
+    subclasses — personas/model_config.py's AGENT_MODELS is the sole owner of
+    model assignment; every agent_id must be listed there (see
     C:\\Users\\james\\.claude\\plans\\i-updated-the-list-wise-pnueli.md)."""
 
     agent_id: str
     model: str
 
     def __init__(self) -> None:
-        from forecaster.agents.model_config import AGENT_MODELS
+        from personas.model_config import AGENT_MODELS
         if self.agent_id not in AGENT_MODELS:
             raise ValueError(
                 f'No model configured for agent_id "{self.agent_id}" in '
-                f'forecaster/agents/model_config.py — add it before instantiating this agent.'
+                f'personas/model_config.py — add it before instantiating this agent.'
             )
         self.model = AGENT_MODELS[self.agent_id]
         self.client = anthropic.Anthropic()

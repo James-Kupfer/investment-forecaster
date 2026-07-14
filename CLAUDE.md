@@ -99,13 +99,13 @@ LLM Superforecaster — applies Tetlock superforecaster discipline to investment
   re-check `max_tokens` for that agent — don't assume the existing budget still has headroom.
 
 ## Agent Conventions
-- All LLM-calling agents subclass `BaseAgent` (`forecaster/agents/base.py`); set `agent_id` as a class attribute and implement `_parse_response()`. Do NOT set `model` on the agent class — `forecaster/agents/model_config.py`'s `AGENT_MODELS` is the sole owner; `BaseAgent.__init__` raises if `agent_id` isn't listed there.
+- All LLM-calling agents subclass `BaseAgent` (`forecaster/agents/base.py`); set `agent_id` as a class attribute and implement `_parse_response()`. Do NOT set `model` on the agent class — `personas/model_config.py`'s `AGENT_MODELS` is the sole owner; `BaseAgent.__init__` raises if `agent_id` isn't listed there.
 - Every agent's `_parse_response()` must extract text via `self.extract_text_block(response)`, never `response.content[0].text` directly — models with extended thinking enabled (e.g. `claude-sonnet-5`) return a `ThinkingBlock` first, which has no `.text` attribute.
 - `log_call()` must be called immediately after every API call — never batched; call failures must still be logged
 - One active prompt per agent (`is_active=1` in `prompt_registry`); never edit a prompt row in-place — deactivate old, insert new versioned row
 
 ## Prompt Registry
-- Prompts live in the DB, not in code. Source of truth for seeding: `forecaster/agents/<agent>.md` files
+- Prompts live in the DB, not in code. Source of truth for seeding: `personas/<agent>.md` files
 - Update via `python scripts/update_prompt.py --agent <agent_id> --version <vX.Y>`
 - Version format: `v1.0`, `v1.1`, etc.; `authored_by_model` records which model wrote it
 

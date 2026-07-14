@@ -33,6 +33,9 @@ investment-forecaster/
 │           ├── trend.py            # TrendAgent
 │           ├── volume.py           # VolumeAgent
 │           └── judge.py            # TechnicalJudgeAgent
+├── personas/
+│   ├── model_config.py             # AGENT_MODELS — sole owner of agent -> model assignment
+│   └── <agent>.md                  # One prompt-text file per agent (source of truth for seeding)
 ├── scripts/
 │   ├── run_migrations.py           # Idempotent migration runner
 │   ├── seed_prompt_registry.py     # Seeds DB with prompts from agent .md files
@@ -48,7 +51,7 @@ investment-forecaster/
 └── architecture.md                 # This file
 ```
 
-Each agent also has a companion `.md` file in `forecaster/agents/` containing its prompt text. These are read by `seed_prompt_registry.py` to populate the `prompt_registry` table.
+Each agent also has a companion `.md` file in `personas/` containing its prompt text. These are read by `seed_prompt_registry.py` to populate the `prompt_registry` table.
 
 ---
 
@@ -364,7 +367,7 @@ Each agent's `run()` method calls `get_active_prompt()`, builds messages, calls 
 Idempotent migration runner. Reads all `migrations/NNN_*.sql` files in order, splits on `GO`, executes each batch with `autocommit=True`. Tracks applied migrations to avoid re-running.
 
 ### `scripts/seed_prompt_registry.py`
-Reads each `forecaster/agents/<agent>.md` file and inserts a row into `prompt_registry` (`is_active=1`) for each agent that doesn't already have an active prompt. Idempotent — skips agents that already have an active entry.
+Reads each `personas/<agent>.md` file and inserts a row into `prompt_registry` (`is_active=1`) for each agent that doesn't already have an active prompt. Idempotent — skips agents that already have an active entry.
 
 ### `scripts/update_prompt.py`
 CLI for updating a single agent's prompt without re-seeding:
@@ -433,7 +436,7 @@ Run `investment-portfolio-manager` sync first to ensure positions are up to date
 
 ## Prompt Management
 
-Prompts are stored in the database, not in code. The `.md` files in `forecaster/agents/` are the **source of truth for seeding** — they are read once by `seed_prompt_registry.py` and inserted into `prompt_registry`. After that, changes go through `update_prompt.py` (which versions the change) or direct SQL.
+Prompts are stored in the database, not in code. The `.md` files in `personas/` are the **source of truth for seeding** — they are read once by `seed_prompt_registry.py` and inserted into `prompt_registry`. After that, changes go through `update_prompt.py` (which versions the change) or direct SQL.
 
 **Never edit a prompt in-place in the DB** — always deactivate the old row and insert a new versioned row. The `update_prompt.py` script enforces this.
 
@@ -441,7 +444,7 @@ Prompts are stored in the database, not in code. The `.md` files in `forecaster/
 
 ## Extension Points
 
-- **Add a new agent:** Create `forecaster/agents/my_agent.py` (subclass `BaseAgent`, set `agent_id` and `model`, implement `_parse_response()`), create `forecaster/agents/my_agent.md` (prompt text), add to `seed_prompt_registry.py`'s agent list, wire into `pipeline.py`.
+- **Add a new agent:** Create `forecaster/agents/my_agent.py` (subclass `BaseAgent`, set `agent_id` and `model`, implement `_parse_response()`), create `personas/my_agent.md` (prompt text), add to `seed_prompt_registry.py`'s agent list, wire into `pipeline.py`.
 - **Add a new migration:** Create `migrations/NNN_description.sql` with the next sequential number. Always use `IF OBJECT_ID IS NULL` / `IF NOT EXISTS` guards. `run_migrations.py` will pick it up automatically.
 - **Change a model:** Update `model` class attribute on the agent class and add pricing to `_PRICING` in `base.py` if it's a new model.
 - **Update a prompt:** Run `python scripts/update_prompt.py --agent <agent_id> --version <vX.Y>` after editing the `.md` file.
