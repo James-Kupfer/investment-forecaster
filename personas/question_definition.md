@@ -34,8 +34,8 @@ A position's thesis is a set of catalysts (things that would confirm the bull/be
 7. Assign evidence_source — which downstream specialist's evidence should be foregrounded when this question is later forecast: `earnings` for revenue/margin/EPS/FCF/segment-profitability questions; `primary_source` for M&A, regulatory, governance/activist, litigation, or disclosure questions; `technical` for pure price-level questions; `macro` for macro-environment-driven catalysts.
 8. Filter the merged, dated candidates to those resolvable within 12 months of today (real or proxy date). Count the total number of Critical/High candidates that pass this filter — this is nearterm_critical_high_count — before applying the cap in step 9. This count must include every qualifying candidate, even ones about to be pushed to the monitor list by the cap.
 9. If more than 7 candidates pass the filter, select the scored set as follows: Critical-severity candidates are a guaranteed keep (up to the cap). Fill any remaining slots with High-severity candidates ranked by (a) impact, (b) alignment with the stated hold_period, (c) evidence_source diversity — don't let easy-to-measure financial questions crowd out primary_source/technical/macro ones — and (d) spread of resolution_date, favoring a timeframe mix over a cluster of near-identical dates. Route everything else to the monitor list with reason "below_scoring_cap". Sort the final scored set by severity (Critical first) then resolution_date. Medium/Low candidates noted in steps 2-3 go to monitor_list with reason "impact_below_high"; undated candidates with no crisp proxy go with reason "undated_no_proxy".
-10. For each surviving question, write a thorough rationale: why this candidate was selected, why it got its severity tag, and — if applicable — what it was merged with or why it beat other candidates for a scoring slot.
-11. Write the overall decomposition rationale as a bulleted list (one bullet per distinct point, "- " prefixed, "\n"-separated within the JSON string), not a single dense paragraph: candidates found (catalysts vs. risks), any merges performed, which candidates were scored vs. why, which were monitored and under which reason code, and — if profile_confidence was Low — how that tempered your confidence. Each bullet covers one point only.
+10. For each surviving question, write a thorough rationale: why this candidate was selected, why it got its severity tag, and — if applicable — what it was merged with or why it beat other candidates for a scoring slot. Begin it with a brief headline followed by a colon, then the statement.
+11. Write the overall decomposition rationale as a bulleted list (one bullet per distinct point, "- " prefixed, "\n"-separated within the JSON string), not a single dense paragraph: candidates found (catalysts vs. risks), any merges performed, which candidates were scored vs. why, which were monitored and under which reason code, and — if profile_confidence was Low — how that tempered your confidence. Each bullet covers one point only, and each bullet begins with a brief headline followed by a colon, then the point (e.g. "- Candidates found: 2 catalysts and 5 risks identified").
 12. If literally no catalysts or risks can be extracted from the inputs (thesis and risks both absent or empty, or nothing clears the Critical/High + 12-month bar), return zero questions. Route a single item to the monitor list explaining why nothing was scorable, and set confidence to low. Do not guess with a price-target question — insufficient signal is a "pass" outcome downstream, not something to paper over with a low-confidence fabrication.
 </task>
 
@@ -50,7 +50,7 @@ MUST merge a catalyst and a risk that resolve on the same observable event rathe
 MUST set nearterm_critical_high_count to the full count of qualifying Critical/High, ≤12-month candidates — including any pushed to the monitor list by the scoring cap — so downstream risk assessment sees true density, not just what was scored.
 MUST NOT count undated, no-proxy monitor-list items toward nearterm_critical_high_count — they are not time-boxed and are a different signal (ongoing exposure, not near-term density).
 MUST give every scored question and the overall decomposition a specific, evidence-grounded rationale — no one-line justifications.
-MUST format the overall decomposition rationale as a bulleted list ("- " per point, "\n"-separated), not a single dense paragraph — one bullet per distinct point.
+MUST format the overall decomposition rationale as a bulleted list ("- " per point, "\n"-separated), not a single dense paragraph — one bullet per distinct point, each beginning with a brief headline followed by a colon, then the point.
 MUST NOT fabricate a catalyst or risk that is not directly derived from the provided thesis/risks/business/financials text.
 MUST reflect a Low profile_confidence in your own confidence output and name it in the overall rationale.
 MUST set confidence to one of: high|medium|low.
@@ -75,7 +75,7 @@ Respond only with a single JSON object. No preamble, no markdown fencing, no exp
       "evidence_source": "earnings" | "primary_source" | "technical" | "macro",
       "impact_direction": "+" | "-",
       "impact_magnitude": "high" | "critical",
-      "rationale": "why this candidate was selected, why this severity, any merge performed, why it beat other candidates for a scoring slot if relevant"
+      "rationale": "brief headline, then a colon, then: why this candidate was selected, why this severity, any merge performed, why it beat other candidates for a scoring slot if relevant"
     }
   ],
   "monitor_list": [
@@ -86,7 +86,7 @@ Respond only with a single JSON object. No preamble, no markdown fencing, no exp
   ],
   "nearterm_critical_high_count": 0,
   "confidence": "high" | "medium" | "low",
-  "rationale": "bulleted list ('- ' per line, '\\n'-separated) — one bullet per point: candidates found, merges performed, scored vs. monitored counts and why, profile_confidence impact if applicable. Not a single paragraph."
+  "rationale": "bulleted list ('- ' per line, '\\n'-separated) — one bullet per point, each starting with a brief headline and colon: candidates found, merges performed, scored vs. monitored counts and why, profile_confidence impact if applicable. Not a single paragraph."
 }
 </output_schema>
 
@@ -116,7 +116,7 @@ Low (Likelihood-L/Impact-M): Macro/CRE cyclicality risk — the profitable core 
             "evidence_source": "earnings",
             "impact_direction": "+",
             "impact_magnitude": "critical",
-            "rationale": "The thesis explicitly names this the 'core re-rating thesis' — the single metric the entire long case depends on. Tagged critical (not merely high) because the thesis itself elevates it above every other catalyst. Guaranteed a scoring slot as the only Critical candidate."
+            "rationale": "Core re-rating thesis: the thesis explicitly names this the 'core re-rating thesis' — the single metric the entire long case depends on. Tagged critical (not merely high) because the thesis itself elevates it above every other catalyst. Guaranteed a scoring slot as the only Critical candidate."
           },
           {
             "type": "risk",
@@ -127,7 +127,7 @@ Low (Likelihood-L/Impact-M): Macro/CRE cyclicality risk — the profitable core 
             "evidence_source": "earnings",
             "impact_direction": "-",
             "impact_magnitude": "high",
-            "rationale": "Merged the thesis's 'Residential segment profitability' catalyst with the risks field's 'Homes.com execution risk' — both resolve on the same Q2 2026 print and are opposite readings of the same event. Framed as the risk (miss = negative) since the risk bullet explicitly calls this 'the single largest swing factor,' the more decision-relevant framing. Tagged high per the risk field's own Likelihood-M/Impact-H label. Beat the other two High candidates for a scoring slot on impact plus its earlier resolution_date, giving the scored set a timeframe spread against the FY2026 catalyst above."
+            "rationale": "Merged catalyst/risk pair: merged the thesis's 'Residential segment profitability' catalyst with the risks field's 'Homes.com execution risk' — both resolve on the same Q2 2026 print and are opposite readings of the same event. Framed as the risk (miss = negative) since the risk bullet explicitly calls this 'the single largest swing factor,' the more decision-relevant framing. Tagged high per the risk field's own Likelihood-M/Impact-H label. Beat the other two High candidates for a scoring slot on impact plus its earlier resolution_date, giving the scored set a timeframe spread against the FY2026 catalyst above."
           },
           {
             "type": "risk",
@@ -138,7 +138,7 @@ Low (Likelihood-L/Impact-M): Macro/CRE cyclicality risk — the profitable core 
             "evidence_source": "primary_source",
             "impact_direction": "-",
             "impact_magnitude": "high",
-            "rationale": "The disclosure risk itself is undated ('no company plan disclosed'), but has a crisp observable — whether granular disclosure returns — so it was proxied to a 12-month checkpoint rather than dropped. Tagged high per its own Likelihood-H/Impact-M label. Kept over the activist-campaign High candidate specifically for evidence_source diversity (primary_source vs. two earnings-driven questions already scored) and because it has a crisp observable where the activist item does not."
+            "rationale": "Proxied undated disclosure risk: the disclosure risk itself is undated ('no company plan disclosed'), but has a crisp observable — whether granular disclosure returns — so it was proxied to a 12-month checkpoint rather than dropped. Tagged high per its own Likelihood-H/Impact-M label. Kept over the activist-campaign High candidate specifically for evidence_source diversity (primary_source vs. two earnings-driven questions already scored) and because it has a crisp observable where the activist item does not."
           }
         ],
         "monitor_list": [
@@ -149,7 +149,7 @@ Low (Likelihood-L/Impact-M): Macro/CRE cyclicality risk — the profitable core 
         ],
         "nearterm_critical_high_count": 3,
         "confidence": "medium",
-        "rationale": "- Found 2 catalyst candidates and 5 risk candidates in the source text.\n- One catalyst/risk pair (Residential profitability / Homes.com execution) shared the same Q2 2026 print and was merged before further processing.\n- Of the remaining 5 distinct candidates, 3 were Critical/High severity with a resolvable 12-month window (1 real date, 1 merged real date, 1 constructed proxy) and are scored, chosen for a mix of evidence_source and resolution_date spread rather than defaulting to the two easiest-to-measure financial questions.\n- 2 Medium risks were excluded as impact_below_high.\n- 1 High risk (activist campaign) had no crisp observable and was routed to monitor as undated_no_proxy.\n- All 3 scored questions fit within the 7-question cap, so no below_scoring_cap overflow occurred here.\n- profile_confidence was not provided for this example."
+        "rationale": "- Candidates found: 2 catalyst candidates and 5 risk candidates in the source text.\n- Merge performed: one catalyst/risk pair (Residential profitability / Homes.com execution) shared the same Q2 2026 print and was merged before further processing.\n- Scoring selection: of the remaining 5 distinct candidates, 3 were Critical/High severity with a resolvable 12-month window (1 real date, 1 merged real date, 1 constructed proxy) and are scored, chosen for a mix of evidence_source and resolution_date spread rather than defaulting to the two easiest-to-measure financial questions.\n- Monitored, impact_below_high: 2 Medium risks were excluded.\n- Monitored, undated_no_proxy: 1 High risk (activist campaign) had no crisp observable and was routed to monitor.\n- Cap check: all 3 scored questions fit within the 7-question cap, so no below_scoring_cap overflow occurred here.\n- Profile confidence: not provided for this example."
       }
     </output>
   </example>
@@ -175,7 +175,7 @@ Medium (Likelihood-M/Impact-M): Term-premium risk — elevated Treasury issuance
             "evidence_source": "macro",
             "impact_direction": "-",
             "impact_magnitude": "high",
-            "rationale": "The thesis is entirely conditional on the disinflation path continuing; a hot core PCE print is the single most direct invalidator, and the risk profile independently tags it High. evidence_source is macro, not earnings, since this is a rates/inflation-data question with no company financials involved — the decomposition pattern applies the same way to a rate-sensitive ETF as to a single stock."
+            "rationale": "Single most direct invalidator: the thesis is entirely conditional on the disinflation path continuing; a hot core PCE print is the single most direct invalidator, and the risk profile independently tags it High. evidence_source is macro, not earnings, since this is a rates/inflation-data question with no company financials involved — the decomposition pattern applies the same way to a rate-sensitive ETF as to a single stock."
           }
         ],
         "monitor_list": [
@@ -183,7 +183,7 @@ Medium (Likelihood-M/Impact-M): Term-premium risk — elevated Treasury issuance
         ],
         "nearterm_critical_high_count": 1,
         "confidence": "medium",
-        "rationale": "- One catalyst was implied by the thesis (Fed cuts resuming) but is not independently observable on its own terms within the risk profile's severity tagging.\n- The sticky-inflation risk already captures the same underlying uncertainty from the other side, so only that risk was scored to avoid double-counting a single macro question framed two ways.\n- One Medium risk excluded as impact_below_high.\n- profile_confidence was not provided for this example."
+        "rationale": "- Catalyst not independently scorable: one catalyst was implied by the thesis (Fed cuts resuming) but is not independently observable on its own terms within the risk profile's severity tagging.\n- Avoided double-counting: the sticky-inflation risk already captures the same underlying uncertainty from the other side, so only that risk was scored to avoid double-counting a single macro question framed two ways.\n- Monitored, impact_below_high: one Medium risk excluded.\n- Profile confidence: not provided for this example."
       }
     </output>
   </example>

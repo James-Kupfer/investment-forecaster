@@ -117,7 +117,7 @@ Example 4 — Foreign filer, no EDGAR coverage, financials_text fallback (demons
 </examples>
 
 <reasoning_gate>
-In under 200 words: state your conclusion, cite primary evidence, and state what would change your assessment.
+In under 200 words: state your conclusion, cite primary evidence, and state what would change your assessment. Begin the rationale with a brief headline followed by a colon, then the statement.
 </reasoning_gate>
 
 <output_schema>

@@ -52,13 +52,13 @@ For each sub-question in the questions list, grade the quality and logic of its 
   - 1.0: reasoning is specific, evidence-grounded, cites concrete sources or figures, and is internally consistent across the elicitation/review/confidence_judge chain.
   - ~0.5: reasoning is present but generic, thinly evidenced, or the review agent flagged a bias that was only partially addressed.
   - ~0.0-0.2: reasoning is circular (conclusion used as its own evidence), contradicts other evidence in its own chain, or is a bare assertion with no cited support.
-Write specific notes for each grade — name the actual weakness or strength, not just the score.
+Write specific notes for each grade — name the actual weakness or strength, not just the score. Begin each note with a brief headline followed by a colon, then the statement.
 
 Identify whether any two or more scored questions are materially correlated (e.g., both catalysts depend on the same underlying event actually landing, or the same macro condition drives multiple questions) — the mechanical score treats each question as independent, which overstates combined conviction when they are not.
 
 Identify whether the monitor_list or risk_floor_output surfaces material downside not reflected in the mechanical score (e.g., scale_adjusted_density_flag is true, or invq2_floor materially exceeds the mechanical score's implied downside).
 
-Using the above, propose adjustment_delta — a single number in [-0.30, +0.30] — representing how much to shift mechanical_score to arrive at adjusted_score. A large delta requires a large, specific reason (correlation, unaddressed bias in a heavily-weighted question, a risk floor the mechanical score doesn't capture). Do not adjust for reasons already priced into the mechanical math (differing final_probability values are already reflected there).
+Using the above, propose adjustment_delta — a single number in [-0.30, +0.30] — representing how much to shift mechanical_score to arrive at adjusted_score. A large delta requires a large, specific reason (correlation, unaddressed bias in a heavily-weighted question, a risk floor the mechanical score doesn't capture). Do not adjust for reasons already priced into the mechanical math (differing final_probability values are already reflected there). Write score_adjustment_rationale beginning with a brief headline followed by a colon, then the statement.
 
 Derive recommendation from the resulting adjusted_score (mechanical_score + adjustment_delta) and the qualitative context, using the effective buy_threshold/sell_threshold you were given (not the base ±0.35 — these already reflect any asymmetry_adjustment):
   - "pass" when there are zero scored questions, or when overall confidence in the scored set is too low to act (e.g., most questions graded low rationale-quality and low forecast confidence) — this is distinct from "hold": pass means there isn't enough signal to judge, hold means there is signal and it nets out neutral.
@@ -66,7 +66,7 @@ Derive recommendation from the resulting adjusted_score (mechanical_score + adju
   - "sell" when adjusted_score is at or below sell_threshold, or a high risk floor / scale_adjusted_density_flag overrides an otherwise marginal positive score.
   - "hold" otherwise.
 
-Write decision_rationale as a complete explanation: the mechanical score and what drove it, the adjustment and why, how risk_floor_output and monitor_list factored in, whether asymmetry_adjustment materially changed the call (i.e. adjusted_score clears the shifted threshold but would not have cleared the base ±0.35), and the resulting recommendation. This is the artifact a person reviews to understand the call — do not compress it to one line.
+Write decision_rationale as a complete explanation: the mechanical score and what drove it, the adjustment and why, how risk_floor_output and monitor_list factored in, whether asymmetry_adjustment materially changed the call (i.e. adjusted_score clears the shifted threshold but would not have cleared the base ±0.35), and the resulting recommendation. This is the artifact a person reviews to understand the call — do not compress it to one line. Begin it with a brief headline followed by a colon, then the statement.
 </task>
 
 <constraints>

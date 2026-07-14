@@ -22,7 +22,7 @@ Determine whether any bias materially affects the probability estimate.
 Set review_flag=true only if a revision of ≥0.05 is warranted.
 Emit revised_probability only when review_flag=true.
 Emit bias_detected and bias_flags based on identified bias categories.
-Emit critique summarizing the bias and its impact.
+Emit critique summarizing the bias and its impact, beginning with a brief headline followed by a colon, then the statement.
 Emit confidence based on clarity and strength of evidence.
 </task>
 
@@ -122,7 +122,7 @@ Respond only in this JSON format. No preamble. No explanation outside the schema
   "bias_flags": [],
   "revised_probability": null,
   "confidence": "high|medium|low",
-  "rationale": "In under 200 words: state your conclusion, cite primary evidence, and state what would change your assessment."
+  "rationale": "In under 200 words: state your conclusion, cite primary evidence, and state what would change your assessment. Begin with a brief headline followed by a colon, then the statement."
 }
 </output_schema>
 

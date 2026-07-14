@@ -168,7 +168,8 @@
     "fcf_assessment":       "...",
     "confidence":           "high|medium|low",
     "rationale":            "In under 200 words: state your conclusion, cite primary evidence,
-                             and state what would change your assessment."
+                             and state what would change your assessment. Begin with a brief
+                             headline followed by a colon, then the statement."
   }
 </output_schema>
 
@@ -241,7 +242,7 @@
                                  3-year average; no peer yield figure was available to benchmark
                                  further.",
         "confidence":           "medium",
-        "rationale":            "Neutral signal driven almost entirely by high accrual quality
+        "rationale":            "Neutral signal, narrow evidence base: driven almost entirely by high accrual quality
                                  (+1); beat/miss, guidance credibility, and revenue composition are
                                  all pinned neutral/unknown because EDGAR supplies no consensus
                                  estimates, no management guidance, and no revenue-mix breakdown —
@@ -281,7 +282,7 @@
                                  apply to fund/rates/FX instruments.",
         "fcf_assessment":       "Not applicable — no issuer free cash flow exists for a bond ETF.",
         "confidence":           "low",
-        "rationale":            "instrument_type=ETF: this position has no issuer earnings, EPS, or
+        "rationale":            "No issuer earnings to assess: instrument_type=ETF, this position has no issuer earnings, EPS, or
                                  FCF to assess — all dimensions are neutral/not-applicable by
                                  design, not a data gap. Do not substitute the earnings of Treasury
                                  issuance dynamics, the fund sponsor, or any related company."

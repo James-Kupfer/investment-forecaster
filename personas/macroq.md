@@ -66,7 +66,8 @@
 
   For node_rationale in every node: state the regime this node represents,
   cite the primary evidence for it, and state what would change your assessment.
-  Keep every node_rationale under 200 words.
+  Keep every node_rationale under 200 words. Begin it with a brief headline
+  followed by a colon, then the statement.
 
   {
     "nodes": [

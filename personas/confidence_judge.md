@@ -71,7 +71,8 @@
   Write calibration_notes identifying which shrinkage rules fired and the trigger
   condition for each — this is read downstream by the aggregation agent when it
   grades this question's overall rationale quality, so name the specific inputs and
-  values that drove each rule, not just which rule fired.
+  values that drove each rule, not just which rule fired. Begin with a brief
+  headline followed by a colon, then the statement.
 </task>
 
 <constraints>
@@ -110,7 +111,8 @@
     "calibration_notes":       "...",
     "rationale":               "In under 200 words: state your conclusion, cite
                                 primary evidence, and state what would change
-                                your assessment."
+                                your assessment. Begin with a brief headline
+                                followed by a colon, then the statement."
   }
 </output_schema>
 

@@ -95,7 +95,7 @@ Respond only in this JSON format. No preamble. No explanation outside the schema
   "momentum_signal": "bullish|bearish|neutral",
   "divergence_flag": false,
   "confidence": "high|medium|low",
-  "rationale": "In under 200 words: state your conclusion, cite primary evidence, and state what would change your assessment."
+  "rationale": "In under 200 words: state your conclusion, cite primary evidence, and state what would change your assessment. Begin with a brief headline followed by a colon, then the statement."
 }
 </output_schema>
 

@@ -74,7 +74,8 @@
   Set inside_view_prob = outside_view_prob + sum_of_shifts.
   Clamp inside_view_prob to [0.05, 0.95].
   Write inside_view_factors as a single structured string covering all four factors, the
-  upstream confidence used to scale each, and their resulting shifts.
+  upstream confidence used to scale each, and their resulting shifts. Begin it with a
+  brief headline followed by a colon, then the statement.
   When setting the final confidence field in Step 4, weigh how many of the four inputs were
   themselves high vs. low confidence — do not output "high" when most contributing evidence
   was low or medium confidence, even if the arithmetic produced a confident-looking number.
@@ -119,7 +120,8 @@
   is itself later graded for quality/logic by the aggregation agent, and weakly-reasoned
   probabilities are down-weighted regardless of their numeric value.
   MUST format rationale as a bulleted list ("- " per point, "\n"-separated), not a single
-  dense paragraph — one bullet per distinct point.
+  dense paragraph — one bullet per distinct point, each beginning with a brief headline
+  followed by a colon, then the point.
 </constraints>
 
 <reasoning_gate>
@@ -145,8 +147,8 @@
     "confidence":            "high|medium|low",
     "rationale":             "Bulleted list ('- ' per line, '\\n'-separated), not a dense
                               paragraph: your conclusion, the primary evidence cited, and what
-                              would change your assessment — one bullet per point, under 200
-                              words total."
+                              would change your assessment — one bullet per point, each starting
+                              with a brief headline and colon, under 200 words total."
   }
 </output_schema>
 
@@ -214,7 +216,7 @@
         "reference_class":       "Mid-cap technology companies with AI infrastructure revenue inflection guiding toward a specific segment-revenue-mix milestone within two quarters, in a macro tailwind",
         "base_rate":             0.38,
         "outside_view_prob":     0.38,
-        "inside_view_factors":   "(a) Primary evidence (earnings specialist, bullish, confidence=high): full-magnitude +0.05, citing accelerating AI infra bookings and conservative guidance; (b) Macro tailwind (confidence=medium): base +0.08 scaled to +0.04; (c) No incremental structural signal beyond primary_evidence: +0.00; (d) Bullish technical verdict (confidence=low): base +0.12 scaled to +0.03, timing signal only lightly weighted given low confidence. Total shift: +0.12.",
+        "inside_view_factors":   "Bullish tilt from earnings, tempered by low-confidence technical: (a) Primary evidence (earnings specialist, bullish, confidence=high): full-magnitude +0.05, citing accelerating AI infra bookings and conservative guidance; (b) Macro tailwind (confidence=medium): base +0.08 scaled to +0.04; (c) No incremental structural signal beyond primary_evidence: +0.00; (d) Bullish technical verdict (confidence=low): base +0.12 scaled to +0.03, timing signal only lightly weighted given low confidence. Total shift: +0.12.",
         "inside_view_prob":      0.50,
         "failure_scenario":      "Hyperscalers redirect infrastructure spend from training to inference, delaying NOVA's AI infra segment mix crossing 30% until a later quarter even as absolute AI revenue keeps growing.",
         "failure_probability":   0.22,
@@ -222,7 +224,7 @@
         "final_probability":     0.39,
         "outlier_justification": "N/A",
         "confidence":            "medium",
-        "rationale":             "- Final probability 0.39 that NOVA's AI infra segment mix crosses 30% next quarter.\n- Below-even base rate (0.38) for hitting a segment-mix milestone on schedule.\n- Lifted +0.12 by high-confidence bullish earnings evidence, a medium-confidence macro tailwind, and a low-confidence technical signal (each shift scaled to its own input's confidence).\n- Tempered by a well-defined timing-slippage failure mode (-0.055).\n- Primary evidence is the earnings specialist's accelerating-bookings read; no distinct structural evidence beyond that.\n- Confidence is medium, not high, since two of the three corroborating inputs (macro, technical) were only medium/low confidence themselves.\n- Would shift above 0.55 if the next earnings call explicitly reaffirms the 30%-mix timeline.\n- Would fall below 0.25 if a major hyperscaler announces capex guidance cuts."
+        "rationale":             "- Conclusion: final probability 0.39 that NOVA's AI infra segment mix crosses 30% next quarter.\n- Base rate: below-even (0.38) for hitting a segment-mix milestone on schedule.\n- Inside-view lift: +0.12 from high-confidence bullish earnings evidence, a medium-confidence macro tailwind, and a low-confidence technical signal (each shift scaled to its own input's confidence).\n- Pre-mortem drag: tempered by a well-defined timing-slippage failure mode (-0.055).\n- Primary evidence: the earnings specialist's accelerating-bookings read; no distinct structural evidence beyond that.\n- Confidence rationale: medium, not high, since two of the three corroborating inputs (macro, technical) were only medium/low confidence themselves.\n- Upside trigger: would shift above 0.55 if the next earnings call explicitly reaffirms the 30%-mix timeline.\n- Downside trigger: would fall below 0.25 if a major hyperscaler announces capex guidance cuts."
       }
     </output>
   </example>

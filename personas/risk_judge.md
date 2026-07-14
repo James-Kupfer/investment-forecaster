@@ -28,7 +28,9 @@
   meaningfully more exposed. Infer scope from the business/competitive_landscape
   text — geography breadth, number of distinct segments/markets/holdings, scale
   language (e.g. "leading global," "single-market," "regional," "diversified")
-  — do not assume scope from symbol or name alone.
+  — do not assume scope from symbol or name alone. Format scale_basis,
+  leverage_basis, and event_driven_basis each as a brief headline followed by
+  a colon, then the statement.
 </context>
 
 <inputs>
@@ -182,7 +184,8 @@
     "confidence": "high|medium|low",
     "rationale": "[under 500 words: state your conclusion, cite primary
       evidence, and state what would change your assessment — including the
-      scale-adjusted density judgment, not just the base-rate floor]"
+      scale-adjusted density judgment, not just the base-rate floor. Begin
+      with a brief headline followed by a colon, then the statement.]"
   }
 </output_schema>
 

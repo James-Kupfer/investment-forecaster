@@ -47,7 +47,7 @@ Example 1 — Strong confirmed uptrend (demonstrates: perfect bullish stack + AD
 - trend_signal="uptrend" (alignment=bullish AND adx≥25 — both conditions met).
 - confidence="high" (perfect bullish alignment + ADX in trending zone).
 - key_level=105.00 (MA20 is nearest support below current price).
-- rationale: "Perfect bullish MA stack with ADX confirming trending regime. MA20 at 105 is the nearest support level. No recent crossover events."
+- rationale: "Confirmed uptrend: perfect bullish MA stack with ADX confirming trending regime. MA20 at 105 is the nearest support level. No recent crossover events."
 
 Example 2 — ADX override of bullish MA stack (demonstrates: ADX<25 forces sideways regardless of MA alignment):
 - price=112.00, ma20=108.00, ma50=103.00, ma200=97.00, adx_value=18
@@ -56,7 +56,7 @@ Example 2 — ADX override of bullish MA stack (demonstrates: ADX<25 forces side
 - trend_signal="sideways" despite visually bullish MA stack.
 - confidence="low" (ADX below 25 makes MA signals unreliable — ranging market).
 - key_level=108.00 (MA20 nearest support, still valid for reference even in ranging market).
-- rationale: "MA stack is bullish but ADX at 18 signals a ranging, choppy market. MA signals are unreliable below ADX=25. Trend classification is sideways until ADX rises above 25."
+- rationale: "ADX overrides bullish stack: MA stack is bullish but ADX at 18 signals a ranging, choppy market. MA signals are unreliable below ADX=25. Trend classification is sideways until ADX rises above 25."
 
 Example 3 — Partial MA alignment, transitional regime (demonstrates: partial alignment prevents high confidence, key_level selection):
 - price=95.00, ma20=97.00, ma50=93.00, ma200=88.00, adx_value=28
@@ -66,11 +66,11 @@ Example 3 — Partial MA alignment, transitional regime (demonstrates: partial a
 - trend_signal="sideways" (partial = transition, not a confirmed trend direction).
 - confidence="medium" (ADX confirms some trend energy but alignment is not resolved).
 - key_level=93.00 (MA50 is nearest support below price; MA20=97 is nearest resistance above — report the support level as key_level).
-- rationale: "Price has pulled below MA20 but remains above MA50 and MA200. Partial alignment signals a transition or consolidation, not a confirmed trend. MA50 at 93 is the critical support to hold."
+- rationale: "Transitional, not confirmed: price has pulled below MA20 but remains above MA50 and MA200. Partial alignment signals a transition or consolidation, not a confirmed trend. MA50 at 93 is the critical support to hold."
 </examples>
 
 <reasoning_gate>
-In under 200 words: state your conclusion, cite primary evidence, and state what would change your assessment.
+In under 200 words: state your conclusion, cite primary evidence, and state what would change your assessment. Begin the rationale with a brief headline followed by a colon, then the statement — e.g. "Confirmed uptrend: perfect bullish MA stack with ADX confirming trending regime."
 </reasoning_gate>
 
 <output_schema>

@@ -25,7 +25,7 @@ You receive recent volume and price data for a specific equity and classify whet
 4. Set accumulation_flag=true if price_direction_10d=down AND recent_volume_trend=declining.
 5. Set climax_volume_flag=true if any single day in the last 5 days had volume exceeding 3× volume_20d_ma.
 6. Classify volume_signal: confirming if volume trend direction matches price_direction_10d; diverging if distribution_flag=true or climax_volume_flag=true; neutral if volume is stable or price is sideways.
-7. Write volume_assessment: a plain-English summary of the volume story and what it implies for price direction.
+7. Write volume_assessment: a plain-English summary of the volume story and what it implies for price direction. Begin with a brief headline followed by a colon, then the statement — e.g. "Institutional participation confirmed: rising price accompanied by rising volume..."
 </task>
 
 <constraints>
@@ -43,32 +43,32 @@ Example 1 — Volume confirms healthy uptrend (demonstrates: expanding volume on
 - price_direction_10d="up"; last-5 avg volume 25% above prior-15 avg (expanding); no day exceeds 3× volume_20d_ma.
 - recent_volume_trend="expanding", distribution_flag=false, accumulation_flag=false, climax_volume_flag=false.
 - volume_signal="confirming", confidence="high".
-- volume_assessment: "Rising price accompanied by rising volume indicates institutional participation in the move. Healthy uptrend confirmation — no distribution pattern detected."
+- volume_assessment: "Institutional participation confirmed: rising price accompanied by rising volume indicates institutional participation in the move. Healthy uptrend confirmation — no distribution pattern detected."
 
 Example 2 — Distribution pattern, constraint fires (demonstrates: rising price on falling volume forces diverging signal regardless):
 - price_direction_10d="up"; last-5 avg volume 30% below prior-15 avg (declining).
 - Constraint 1 fires: price=up AND volume=declining → distribution_flag=true (mandatory).
 - Constraint 2 fires: distribution_flag=true → volume_signal=diverging (mandatory).
 - volume_signal="diverging", confidence="medium" (no climax, so not forced to low).
-- volume_assessment: "Price rising on declining volume — classic distribution pattern. Institutions appear to be selling into retail buying. This is a bearish reversal warning. Conviction in the uptrend is declining."
+- volume_assessment: "Classic distribution pattern: price rising on declining volume. Institutions appear to be selling into retail buying. This is a bearish reversal warning. Conviction in the uptrend is declining."
 - Demonstrates: two constraints cascade; no combination of other signals can reverse distribution_flag or volume_signal.
 
 Example 3 — Climax volume degrades confidence (demonstrates: extreme single-day volume forces confidence=low, ambiguous read):
 - price_direction_10d="up"; on day 4 of the last 5, volume = 4.2× volume_20d_ma (climax event).
 - climax_volume_flag=true. Constraint fires: volume_signal=diverging AND confidence=low (mandatory).
-- volume_assessment: "Climax volume event detected (4.2× 20-day MA on a single day). High volume at price extremes often signals capitulation or exhaustion — directional read is ambiguous until the next 3–5 sessions confirm follow-through. Confidence is low."
+- volume_assessment: "Climax volume, ambiguous read: 4.2× 20-day MA on a single day. High volume at price extremes often signals capitulation or exhaustion — directional read is ambiguous until the next 3–5 sessions confirm follow-through. Confidence is low."
 - Demonstrates: climax volume creates forced ambiguity; directional bias suspended until follow-through observed.
 
 Example 4 — Accumulation (demonstrates: falling price on falling volume is NOT bearish):
 - price_direction_10d="down"; last-5 avg volume 20% below prior-15 avg (declining).
 - Constraint check: price=down AND volume=declining → accumulation_flag=true (NOT distribution).
 - volume_signal="neutral" (no panic selling; patient holders; orderly retracement).
-- volume_assessment: "Price declining on declining volume — orderly retracement on low interest. No panic selling detected. Patient holders suggest accumulation phase. Neutral to mildly bullish implication."
+- volume_assessment: "Accumulation, not distribution: price declining on declining volume — orderly retracement on low interest. No panic selling detected. Patient holders suggest accumulation phase. Neutral to mildly bullish implication."
 - Demonstrates: declining volume on declining price is NOT bearish; MUST classify as accumulation and note bullish implication.
 </examples>
 
 <reasoning_gate>
-In under 200 words: state your conclusion, cite primary evidence, and state what would change your assessment.
+In under 200 words: state your conclusion, cite primary evidence, and state what would change your assessment. Begin the rationale with a brief headline followed by a colon, then the statement.
 </reasoning_gate>
 
 <output_schema>

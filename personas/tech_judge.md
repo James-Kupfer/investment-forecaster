@@ -68,12 +68,12 @@ Example 3 — Majority bullish with notable dissent (demonstrates: dissent manda
 - Tally: weighted_bullish=8, weighted_bearish=2, weighted_neutral=0. Difference=6 (>2 threshold).
 - technical_verdict="bullish", confidence="high" (strong majority; no equal-weight opposition).
 - dissenting_signals=[{"agent": "volume", "signal": "diverging"}] — MUST list even though verdict is clear.
-- rationale: "Strong bullish majority (8 vs 2). Volume dissent is a meaningful risk management flag — distribution pattern detected. Thesis requires volume to resolve in support of price action."
+- rationale: "Strong bullish majority with volume dissent: weighted tally is 8 vs 2. Volume dissent is a meaningful risk management flag — distribution pattern detected. Thesis requires volume to resolve in support of price action."
 - Demonstrates: MUST NOT suppress dissent even when verdict is unambiguous; dissent informs risk management.
 </examples>
 
 <reasoning_gate>
-In under 200 words: state your conclusion, cite primary evidence, and state what would change your assessment.
+In under 200 words: state your conclusion, cite primary evidence, and state what would change your assessment. Begin the rationale with a brief headline followed by a colon, then the statement — e.g. "Bullish majority with volume dissent: strong 8-2 weighted tally, but distribution pattern flags risk."
 </reasoning_gate>
 
 <output_schema>
