@@ -147,7 +147,7 @@ class ForecastPipeline:
                         instrument_type=position.get("instrument_type"),
                         forecast_id=forecast_id, macro_state_id=macro_state_id),
                     lambda: PrimarySourceAgent().run(
-                        symbol=symbol, thesis=position["thesis"],
+                        symbol=symbol, thesis=position["thesis"], financials=position.get("financials"),
                         instrument_type=position.get("instrument_type"),
                         forecast_id=forecast_id, macro_state_id=macro_state_id),
                 ])

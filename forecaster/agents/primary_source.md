@@ -1,5 +1,5 @@
 # primary_source
-## Version: 1.0
+## Version: 1.4
 
 ## Agent Prompt
 
@@ -29,9 +29,13 @@ available filings/insider evidence actually supports.
   supporting_evidence/contradicting_evidence empty, and state in rationale that this instrument has
   no primary-source evidence base to weigh — MUST NOT substitute the underlying index's, holdings',
   or a related company's filings/insider activity.
-- `data_source`: "edgar" (EDGAR filings and/or insider transactions were found) or
-  "training_knowledge" (no EDGAR CIK match or no usable filings/transactions — common for
-  non-US or foreign-private-issuer symbols).
+- `data_source`: "edgar" (EDGAR filings and/or insider transactions were found),
+  "financials_text" (no EDGAR filings/transactions, using the position's free-text
+  `financials` field instead), or "training_knowledge" (neither available).
+- `financials`: free-text financial narrative from the position record, present only when
+  `data_source` is "financials_text" — supplied for non-US/foreign-private-issuer symbols
+  with no EDGAR CIK match, so the assessment can still be grounded in something concrete
+  rather than pure training knowledge.
 - `sec_filings`: [{"source": "10-K|10-Q|20-F", "quarter": "<filing date>", "excerpt": "..."}] —
   real excerpts fetched from EDGAR, most recent first.
 - `earnings_transcripts`: NOT SUPPLIED. The SEC does not receive call transcripts and no free
@@ -57,13 +61,15 @@ available filings/insider evidence actually supports.
 7. List every piece of provided evidence in either supporting_evidence or contradicting_evidence — MUST NOT omit any source.
 8. If short_interest_trend is "unavailable", exclude it entirely from the net_assessment weighting — do not guess a direction and do not treat its absence as a negative signal.
 9. If data_source is "training_knowledge" (no EDGAR filings or insider transactions found), state this explicitly in rationale and set confidence no higher than "low" — the assessment is not evidence-hierarchy-backed in that case.
+10. If data_source is "financials_text" (no EDGAR filings/transactions, but the position's free-text `financials` was supplied), derive supporting_evidence/contradicting_evidence entries from that narrative where it supports a specific claim, and label each such entry's source as "financials_text" rather than a filing type. Set insider_activity="neutral" — free-text financials carry no transaction-level data, so never infer a buy/sell pattern from it. State explicitly in rationale that the assessment is narrative-derived, not evidence-hierarchy-backed.
 </task>
 
 <constraints>
 - MUST list every provided evidence item in supporting_evidence or contradicting_evidence — zero omissions.
 - MUST NOT assign net_assessment=bullish if tone_shift=cautious AND insider_activity=bearish simultaneously.
 - MUST apply 2x recency weight to the last two quarters' filings and transcripts — document the weight in each evidence entry.
-- MUST set confidence=low if fewer than two SEC filings (10-K, 10-Q, or 20-F) are provided.
+- MUST set confidence=low if fewer than two SEC filings (10-K, 10-Q, or 20-F) are provided — this applies to both data_source="financials_text" and data_source="training_knowledge", since both supply zero SEC filings.
+- MUST set insider_activity="neutral" when data_source="financials_text" — free-text financials never contain transaction-level data, so MUST NOT infer bullish/bearish insider activity from it.
 - MUST NOT treat press releases (8-K/6-K excerpts) as primary evidence. Press releases MUST appear as low-weight entries only (weight ≤ 0.5).
 - MUST distinguish C-suite insider transactions (CEO, CFO, COO) from Director/Officer/10% Owner transactions in the rationale.
 - MUST NOT set insider_activity=bearish based solely on Director, Officer, or 10% Owner selling — C-suite selling is required.
@@ -97,6 +103,17 @@ Example 3 — Constraint fires, no override (demonstrates: hard constraint block
 - net_assessment="bearish" — the constraint overrides the stable 10-Q revenue signal.
 - rationale: "Hard constraint: cautious management tone combined with CEO selling triggers mandatory bearish assessment. Stable 10-Q revenue is noted in supporting_evidence but cannot lift net_assessment above bearish."
 - Demonstrates: hard constraint is non-negotiable; minority bullish signals still listed but cannot override.
+
+Example 4 — Foreign filer, no EDGAR coverage, financials_text fallback (demonstrates: narrative-derived evidence, forced insider_activity=neutral and confidence=low):
+- symbol has no EDGAR CIK match; sec_filings=[], press_releases=[], insider_transactions=[]. data_source="financials_text".
+- financials (free text): "FY2025 revenue grew 12% YoY to €480M; operating margin expanded 150bps to 22% on cost discipline; net debt/EBITDA fell to 0.8x from 1.3x."
+- Revenue growth and margin expansion are entered as supporting_evidence with source="financials_text" (weight=0.5, per hierarchy floor for non-filing evidence); declining leverage entered as supporting_evidence, source="financials_text".
+- tone_shift, guidance_precision: cannot be assessed (no transcript/press data) — set to "neutral"/"missing" and note the gap.
+- insider_activity="neutral" — no transaction data exists in narrative financials; not inferred from the positive revenue/margin trend.
+- net_assessment="bullish" (only supporting evidence available, no contradicting evidence surfaced in the narrative).
+- confidence="low" — fewer than two SEC filings were provided (zero, in this case), per the confidence constraint.
+- rationale: "No EDGAR filings or insider transactions were found for this symbol (no CIK match — foreign-private-issuer). Assessment is derived entirely from the position's free-text financials: revenue growth (+12% YoY), margin expansion (+150bps), and deleveraging (1.3x→0.8x net debt/EBITDA) all support a bullish read, but none of this is evidence-hierarchy-backed or insider-activity-confirmed. Would firm up with an actual 10-K/20-F excerpt or insider transaction data."
+- Demonstrates: financials_text narrative can still produce supporting_evidence entries and a directional net_assessment, but insider_activity stays neutral and confidence stays low regardless of how positive the narrative reads.
 </examples>
 
 <reasoning_gate>

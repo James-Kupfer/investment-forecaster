@@ -539,3 +539,88 @@ class TestComputeLowNAdjustment:
         assert AggregationAgent.derive_recommendation(
             questions, score, None, sell_threshold=sell_threshold
         ) == "sell"  # still floored past even the widened threshold -- signal isn't discarded
+
+
+# ---------------------------------------------------------------------------
+# PrimarySourceAgent -- financials-text fallback for foreign filers with no
+# EDGAR coverage (mirrors EarningsAgent's existing financials_text branch)
+# ---------------------------------------------------------------------------
+
+def _run_primary_source(
+    financials, sec_filings=None, press_filings=None, insider_transactions=None,
+):
+    """Runs PrimarySourceAgent.run() with edgar_client and the Anthropic call
+    mocked out, returning (data_source, prompt_content) so tests can assert on
+    what data_source resolved to and what got sent to the model."""
+    from forecaster.agents.research.primary_source import PrimarySourceAgent
+
+    agent = PrimarySourceAgent()
+    captured = {}
+
+    def fake_call(messages, system=None, max_tokens=1024):
+        captured["content"] = messages[0]["content"]
+        result = MagicMock()
+        result.output = {"net_assessment": "neutral", "confidence": "low", "rationale": "r"}
+        return result
+
+    with patch(
+        "forecaster.agents.research.primary_source.get_recent_filings",
+        side_effect=lambda symbol, forms, limit: (
+            sec_filings if forms == ("10-K", "10-Q", "20-F") else (press_filings or [])
+        ) or [],
+    ), patch(
+        "forecaster.agents.research.primary_source.fetch_filing_excerpt",
+        return_value="excerpt text",
+    ), patch(
+        "forecaster.agents.research.primary_source.get_insider_transactions",
+        return_value=insider_transactions or [],
+    ), patch.object(agent, "call", side_effect=fake_call), patch.object(
+        agent, "log_call"
+    ), patch.object(
+        agent, "get_active_prompt", return_value=(1, "system prompt")
+    ), patch(
+        "forecaster.agents.research.primary_source.update_forecast_columns"
+    ):
+        agent.run(symbol="TEST", thesis="thesis text", forecast_id=1, financials=financials)
+
+    return captured["content"]
+
+
+class TestPrimarySourceAgentDataSource:
+    """Foreign stocks often have no EDGAR CIK match at all. Mirrors
+    EarningsAgent's existing data_source resolution (edgar / financials_text /
+    training_knowledge) so a foreign position's Profile financials ground the
+    assessment instead of pure training knowledge."""
+
+    def test_uses_financials_text_when_edgar_empty_and_financials_provided(self):
+        content = _run_primary_source(
+            financials="FY2025 revenue grew 12% YoY to EUR480M.",
+            sec_filings=[], press_filings=[], insider_transactions=[],
+        )
+        assert "data_source=financials_text" in content
+        assert "FY2025 revenue grew 12% YoY to EUR480M." in content
+
+    def test_falls_back_to_training_knowledge_when_no_financials_either(self):
+        content = _run_primary_source(
+            financials=None, sec_filings=[], press_filings=[], insider_transactions=[],
+        )
+        assert "data_source=training_knowledge" in content
+        assert "financials_text" not in content
+
+    def test_edgar_takes_priority_over_financials_when_filings_exist(self):
+        content = _run_primary_source(
+            financials="some narrative that should be ignored",
+            sec_filings=[{"form": "10-K", "filed": "2026-01-01"}],
+            press_filings=[], insider_transactions=[],
+        )
+        assert "data_source=edgar" in content
+        assert "some narrative that should be ignored" not in content
+
+    def test_edgar_takes_priority_when_only_insider_transactions_exist(self):
+        content = _run_primary_source(
+            financials="ignored narrative",
+            sec_filings=[], press_filings=[],
+            insider_transactions=[{"role": "CEO", "action": "buy", "shares": 1000, "date": "2026-01-01"}],
+        )
+        assert "data_source=edgar" in content
+        assert "ignored narrative" not in content

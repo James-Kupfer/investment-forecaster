@@ -15,6 +15,7 @@ class PrimarySourceAgent(BaseAgent):
         symbol: str,
         thesis: str,
         forecast_id: int,
+        financials: Optional[str] = None,
         instrument_type: Optional[str] = None,
         macro_state_id: Optional[int] = None,
     ) -> AgentResult:
@@ -33,7 +34,30 @@ class PrimarySourceAgent(BaseAgent):
         ]
         press_releases = [p for p in press_releases if p["excerpt"]]
         insider_transactions = get_insider_transactions(symbol)
-        data_source = "edgar" if (sec_filings or insider_transactions) else "training_knowledge"
+        if sec_filings or insider_transactions:
+            data_source = "edgar"
+            fallback_note = ""
+        elif financials:
+            data_source = "financials_text"
+            fallback_note = (
+                f"No EDGAR filings or insider transactions were found for {symbol} (no CIK match "
+                f"or no usable filings — common for non-US/foreign-private-issuer symbols). "
+                f"data_source={data_source}.\n"
+                f"Financials (free-text, from the position record): {financials}\n\n"
+                "Derive supporting_evidence/contradicting_evidence entries from this narrative "
+                "where it supports a specific claim; note which entries were narrative-derived "
+                "rather than pulled from a filing excerpt. insider_activity MUST be \"neutral\" — "
+                "free-text financials carry no transaction-level data, so do not guess a buy/sell "
+                "pattern from it. State explicitly that this assessment is not evidence-hierarchy-"
+                "backed in the primary-source sense.\n\n"
+            )
+        else:
+            data_source = "training_knowledge"
+            fallback_note = (
+                "If sec_filings and insider_transactions are both empty (no EDGAR CIK match, "
+                "e.g. thinly-covered or non-US-filer symbols), state this explicitly and note "
+                "the assessment falls back to training knowledge rather than primary sources.\n\n"
+            )
 
         messages = [
             {
@@ -55,9 +79,7 @@ class PrimarySourceAgent(BaseAgent):
                     f"{json.dumps(insider_transactions, indent=2)}\n\n"
                     "short_interest_trend: \"unavailable\" — FINRA/exchange data, not carried by "
                     "EDGAR. Exclude it from net_assessment weighting; do not guess a direction.\n\n"
-                    "If sec_filings and insider_transactions are both empty (no EDGAR CIK match, "
-                    "e.g. thinly-covered or non-US-filer symbols), state this explicitly and note "
-                    "the assessment falls back to training knowledge rather than primary sources.\n\n"
+                    f"{fallback_note}"
                     "Identify and weigh the available primary source evidence for and against the "
                     "thesis per the task and output_schema in your system prompt."
                 ),
