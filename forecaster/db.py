@@ -2,9 +2,8 @@ import os
 from contextlib import contextmanager
 
 import psycopg2
-from dotenv import load_dotenv
 
-load_dotenv()
+import forecaster.credentials  # noqa: F401 (loads DB_*/ANTHROPIC_API_KEY into os.environ)
 
 _HOST = os.getenv('DB_HOST', 'localhost')
 _PORT = int(os.getenv('DB_PORT', '5432'))

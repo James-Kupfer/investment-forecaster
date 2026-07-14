@@ -33,6 +33,17 @@ _MAX_ASYMMETRY_ADJUSTMENT = 0.20
 _ASYMMETRY_RATING_MULTIPLES = {"high": 10.0, "medium": 5.0, "low": 1.0, "no": 0.0}
 _ASYMMETRY_REFERENCE_MULTIPLE = 10.0
 
+# compute_mechanical_score's normalization pins the score to +/-1 whenever every
+# scored question lands on the same side of the ledger (guaranteed at n=1, likely
+# at n=2-3) — the probability of that lone question never enters the sign or
+# magnitude, only which side it's on. The signal is still real (decision 2 never
+# discards a scored question), but the buy/sell thresholds widen — more risk
+# tolerance toward "hold" — the fewer questions back the score, tapering linearly
+# to zero once a position has _FULL_QUESTION_COUNT or more (a fuller decomposition
+# no longer risks being dominated by a single item).
+_MAX_LOW_N_ADJUSTMENT = 0.20
+_FULL_QUESTION_COUNT = 4
+
 
 class AggregationAgent(BaseAgent):
     """Aggregates all of a position's decomposed sub-question forecasts into a
@@ -49,16 +60,21 @@ class AggregationAgent(BaseAgent):
     def compute_mechanical_score(questions: list) -> tuple:
         """Deterministic expected-value backbone (decision 2 in the plan) —
         never LLM-computed. Returns (mechanical_score, upside_impact,
-        downside_impact, upside_downside_ratio). mechanical_score is
-        normalized to [-1, +1] so positions are comparable regardless of how
-        many sub-questions they have."""
+        downside_impact, upside_downside_ratio, scored_count). mechanical_score
+        is normalized to [-1, +1] so positions are comparable regardless of how
+        many sub-questions they have. scored_count is the number of questions
+        that actually contributed a weighted probability (excludes ones with no
+        final_probability or a zero severity weight) — the true sample size
+        behind the score, for compute_low_n_adjustment."""
         upside_impact = 0.0
         downside_impact = 0.0
+        scored_count = 0
         for q in questions:
             p = q.get("final_probability")
             weight = _SEVERITY_WEIGHT.get(q.get("impact_magnitude"), 0)
             if p is None or not weight:
                 continue
+            scored_count += 1
             contribution = float(p) * weight
             if q.get("impact_direction") == "+":
                 upside_impact += contribution
@@ -68,7 +84,7 @@ class AggregationAgent(BaseAgent):
         total = upside_impact + downside_impact
         mechanical_score = (upside_impact - downside_impact) / total if total > 0 else 0.0
         upside_downside_ratio = (upside_impact / downside_impact) if downside_impact > 0 else None
-        return mechanical_score, upside_impact, downside_impact, upside_downside_ratio
+        return mechanical_score, upside_impact, downside_impact, upside_downside_ratio, scored_count
 
     @staticmethod
     def compute_asymmetry_adjustment(asymmetric_rating) -> float:
@@ -85,6 +101,24 @@ class AggregationAgent(BaseAgent):
             return 0.0
         scale = min(multiple / _ASYMMETRY_REFERENCE_MULTIPLE, 1.0)
         return round(scale * _MAX_ASYMMETRY_ADJUSTMENT, 4)
+
+    @staticmethod
+    def compute_low_n_adjustment(scored_count: int) -> float:
+        """
+        Points to widen both buy/sell thresholds toward "hold" as scored_count
+        drops below _FULL_QUESTION_COUNT — a lone scored question (or a
+        thin 2-3 question set) gets fully floored/ceilinged to +/-1 by
+        compute_mechanical_score regardless of its actual probability, so a
+        thinner set should need a stronger adjusted_score to still clear the
+        buy/sell bar. Zero once scored_count >= _FULL_QUESTION_COUNT (a fuller
+        decomposition is no longer at risk of one item dominating the score).
+        Zero for scored_count <= 0 too — derive_recommendation already sends
+        an empty scored set to "pass", not a floored buy/sell.
+        """
+        if scored_count <= 0 or scored_count >= _FULL_QUESTION_COUNT:
+            return 0.0
+        scale = (_FULL_QUESTION_COUNT - scored_count) / (_FULL_QUESTION_COUNT - 1)
+        return round(scale * _MAX_LOW_N_ADJUSTMENT, 4)
 
     @staticmethod
     def clamp_adjustment(delta) -> float:
@@ -130,12 +164,13 @@ class AggregationAgent(BaseAgent):
         asymmetric_rating: Optional[str] = None,
         macro_state_id: Optional[int] = None,
     ) -> AgentResult:
-        mechanical_score, upside_impact, downside_impact, upside_downside_ratio = (
+        mechanical_score, upside_impact, downside_impact, upside_downside_ratio, scored_count = (
             self.compute_mechanical_score(questions)
         )
         asymmetry_adjustment = self.compute_asymmetry_adjustment(asymmetric_rating)
-        buy_threshold = _BUY_THRESHOLD - asymmetry_adjustment
-        sell_threshold = _SELL_THRESHOLD - asymmetry_adjustment
+        low_n_adjustment = self.compute_low_n_adjustment(scored_count)
+        buy_threshold = _BUY_THRESHOLD - asymmetry_adjustment + low_n_adjustment
+        sell_threshold = _SELL_THRESHOLD - asymmetry_adjustment - low_n_adjustment
 
         _, system_prompt = self.get_active_prompt()
         messages = [
@@ -160,6 +195,14 @@ class AggregationAgent(BaseAgent):
                     f"more mechanical-score risk than a capped/linear payoff would. Reflect this "
                     f"explicitly in decision_rationale when it affects your recommendation; do "
                     f"not re-litigate the shift itself, only the recommendation given it.\n\n"
+                    f"Scored question count: {scored_count} (of {_FULL_QUESTION_COUNT} treated as a "
+                    f"full decomposition). With few scored questions, the mechanical score is "
+                    f"normalized against a thin or single-item ledger and gets pinned toward the "
+                    f"+/-1 floor/ceiling regardless of that question's actual probability — the "
+                    f"signal is still real, it is just less diversified. The thresholds above "
+                    f"already include a low-n widening of {low_n_adjustment:+.4f} toward hold for "
+                    f"this reason (zero once scored_count >= {_FULL_QUESTION_COUNT}); do not "
+                    f"re-litigate that widening itself, only the recommendation given it.\n\n"
                     "For EACH sub-question, grade the quality and logic of its forecast rationale "
                     "(0-1) — is it sound, evidence-backed, non-circular? Note any concerns. "
                     "Then propose a bounded adjustment (no more than +/-0.30) to the mechanical "
@@ -216,6 +259,8 @@ class AggregationAgent(BaseAgent):
             expected_downside_impact=downside_impact,
             upside_downside_ratio=upside_downside_ratio,
             asymmetry_adjustment=asymmetry_adjustment,
+            low_n_adjustment=low_n_adjustment,
+            question_count=scored_count,
             buy_threshold_used=buy_threshold,
             sell_threshold_used=sell_threshold,
             monitor_list=json.dumps(monitor_list),

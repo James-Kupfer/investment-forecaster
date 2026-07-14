@@ -32,6 +32,16 @@ LLM Superforecaster — applies Tetlock superforecaster discipline to investment
   old `is_asymmetric` BOOLEAN column, whose boolean coercion in the portfolio-manager's
   `excel_sync.py` had been silently collapsing every real rating (including "No") to `false` —
   see `investment-portfolio-manager` migration 006.
+- **Thin decompositions widen the buy/sell thresholds too**, mechanically, in `aggregation.py`
+  (`compute_low_n_adjustment`): `compute_mechanical_score`'s normalization pins the score to the
+  ±1 floor/ceiling whenever every scored sub-question lands on the same side of the ledger —
+  guaranteed at `scored_count=1`, likely at 2-3 — because a lone question's probability never
+  enters the sign or magnitude, only which side it's on. The signal is still kept (a single
+  Critical question is still valuable, never discarded), but `buy_threshold`/`sell_threshold`
+  widen toward hold as `scored_count` drops below `_FULL_QUESTION_COUNT` (4), tapering linearly to
+  zero at and above it. Capped at ±0.20 (same cap as the asymmetry adjustment) and logged to
+  `low_n_adjustment`/`question_count` on `forecasts` for audit — stacks with the asymmetry shift
+  rather than replacing it.
 - **Resolution limitation, by design**: sub-questions framed around a specific reported metric
   (`resolution_source = filing`) forecast more accurately than a generic price bet, but
   `run_resolution.py` cannot auto-resolve them — that requires reading an actual filing/press
@@ -56,15 +66,16 @@ LLM Superforecaster — applies Tetlock superforecaster discipline to investment
   `earnings.md`/`primary_source.md` prompts treat their absence as the structural norm (pinning the
   relevant sub-signals to neutral/unavailable) rather than something to fill in from training
   knowledge.
-- Requires `SEC_EDGAR_USER_AGENT` env var (see `.env.example`) — SEC's fair-access policy requires a
-  descriptive User-Agent with a real contact email; missing/generic values risk throttling.
+- Requires `SEC_EDGAR_USER_AGENT` — read from the shared `Secrets\SEC.py` by `forecaster/credentials.py`
+  — SEC's fair-access policy requires a descriptive User-Agent with a real contact email;
+  missing/generic values risk throttling.
 
 ## Database
 - PostgreSQL on `localhost:5432`
 - **`investment_forecaster`** — this app's database (`db_cursor()` / `get_connection()`)
 - **`investment_portfolio`** — owned by `investment-portfolio-manager`; read via `portfolio_db_cursor()` / `get_portfolio_connection()` in `forecaster/db.py`
-- Connection via `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` env vars (see `.env.example`)
-- **Credentials go in `.env` only — never in code or committed config**
+- `DB_HOST`, `DB_USER`, `DB_PASSWORD` are loaded at import time by `forecaster/credentials.py` directly from the shared `C:\Users\james\GitHub\Secrets` folder (`postgres.py`, `Anthropic.py`) — no `.env` file, no per-repo copy. `DB_PORT`, `DB_NAME`, `PORTFOLIO_DB_NAME` are non-secret and default in `forecaster/db.py` (overridable via real OS env vars, see `.env.example`).
+- **Credentials go in the shared `Secrets` folder only — never in `.env`, code, or committed config.** `Secrets` is shared across repos specifically to avoid every repo duplicating the same password/API key.
 - Cross-database queries not supported in PostgreSQL; `run_resolution.py` fetches positions separately via `portfolio_db_cursor()` and merges in Python
 
 ## Token budgets
@@ -109,6 +120,6 @@ LLM Superforecaster — applies Tetlock superforecaster discipline to investment
 - Mock Anthropic API in unit tests (`unittest.mock.patch`) — `test_db.py` runs against live Postgres, run manually or via scheduled workflow
 
 ## Environment
-Copy `.env.example` to `.env` and fill in `ANTHROPIC_API_KEY` and Postgres credentials (`DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`).
+No `.env` file is used. `ANTHROPIC_API_KEY`, Postgres credentials (`DB_HOST`, `DB_USER`, `DB_PASSWORD`), and `SEC_EDGAR_USER_AGENT` are read directly from `C:\Users\james\GitHub\Secrets\Anthropic.py` / `postgres.py` / `SEC.py` by `forecaster/credentials.py` — that folder is the single shared source of truth across repos. `.env.example` only documents optional non-secret overrides (e.g. `IBKR_GATEWAY_URL`); set those as real OS env vars if you need to change a default.
 
-**`PYTHONUTF8=1` must be set as a real OS/user environment variable (not just in `.env`)** on Windows before running anything that calls the Anthropic API. Without it, this environment's default locale is `cp1252`, and Claude's responses containing em-dashes/smart quotes/other non-ASCII characters get silently corrupted (UTF-8 bytes decoded as cp1252) before they're ever written to `llm_call_log`/`forecasts`/`forecast_questions` — the corruption is baked into the stored text, not just a display artifact, and isn't retroactively fixable except by re-running the affected forecast. `.env`-loaded variables apply too late (after the interpreter has already started with the wrong encoding mode), so this must be `setx PYTHONUTF8 1` (persists for new sessions) or set for the current session before invoking `python`. Verify with `python -c "import locale; print(locale.getpreferredencoding())"` — it must print `utf-8`, not `cp1252`.
+**`PYTHONUTF8=1` must be set as a real OS/user environment variable** on Windows before running anything that calls the Anthropic API. Without it, this environment's default locale is `cp1252`, and Claude's responses containing em-dashes/smart quotes/other non-ASCII characters get silently corrupted (UTF-8 bytes decoded as cp1252) before they're ever written to `llm_call_log`/`forecasts`/`forecast_questions` — the corruption is baked into the stored text, not just a display artifact, and isn't retroactively fixable except by re-running the affected forecast. This must be `setx PYTHONUTF8 1` (persists for new sessions) or set for the current session before invoking `python`. Verify with `python -c "import locale; print(locale.getpreferredencoding())"` — it must print `utf-8`, not `cp1252`.

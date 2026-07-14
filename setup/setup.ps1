@@ -9,17 +9,17 @@ $RepoRoot      = Split-Path $PSScriptRoot -Parent
 $SecretsDir    = "C:\Users\james\GitHub\Secrets"
 $PgSecretsFile = Join-Path $SecretsDir "postgres.py"
 $AnthropicFile = Join-Path $SecretsDir "anthropic.py"
-$EnvFile       = Join-Path $RepoRoot ".env"
 $SchemaFile    = Join-Path $RepoRoot "setup\create_schema_postgres.sql"
 
 Write-Host ""
 Write-Host "=== investment-forecaster setup ===" -ForegroundColor Cyan
 
 # ---------------------------------------------------------------------------
-# 1. Read credentials from secrets files
+# 1. Verify credentials are available in the shared secrets files
+#    (forecaster/credentials.py reads these directly at runtime — no .env)
 # ---------------------------------------------------------------------------
 Write-Host ""
-Write-Host "[1/6] Reading credentials from $SecretsDir..."
+Write-Host "[1/5] Verifying credentials in $SecretsDir..."
 
 foreach ($f in @($PgSecretsFile, $AnthropicFile)) {
     if (-not (Test-Path $f)) {
@@ -53,37 +53,10 @@ if (-not $AnthropicKey) {
 Write-Host "  user=$PgUser  host=$PgHost  anthropic key OK"
 
 # ---------------------------------------------------------------------------
-# 2. Write .env
+# 2. Create databases
 # ---------------------------------------------------------------------------
 Write-Host ""
-Write-Host "[2/6] Writing $EnvFile..."
-
-$EnvLines = @(
-    "# PostgreSQL connection",
-    "DB_HOST=$PgHost",
-    "DB_PORT=5432",
-    "DB_NAME=investment_forecaster",
-    "DB_USER=$PgUser",
-    "DB_PASSWORD=$PgPassword",
-    "",
-    "# Portfolio database (managed by investment-portfolio-manager)",
-    "PORTFOLIO_DB_NAME=investment_portfolio",
-    "",
-    "# Anthropic API",
-    "ANTHROPIC_API_KEY=$AnthropicKey",
-    "",
-    "# IBKR Client Portal Gateway",
-    "IBKR_GATEWAY_URL=https://localhost:5000"
-)
-$EnvLines | Set-Content -Path $EnvFile -Encoding UTF8
-
-Write-Host "  Written to $EnvFile"
-
-# ---------------------------------------------------------------------------
-# 3. Create databases
-# ---------------------------------------------------------------------------
-Write-Host ""
-Write-Host "[3/6] Creating databases (if they do not exist)..."
+Write-Host "[2/5] Creating databases (if they do not exist)..."
 
 # Locate psql if it is not already on PATH
 $psqlCmd = Get-Command psql -ErrorAction SilentlyContinue
@@ -116,28 +89,28 @@ foreach ($DbName in @("investment_forecaster", "investment_portfolio")) {
 }
 
 # ---------------------------------------------------------------------------
-# 4. Apply schema to investment_forecaster
+# 3. Apply schema to investment_forecaster
 # ---------------------------------------------------------------------------
 Write-Host ""
-Write-Host "[4/6] Applying schema to investment_forecaster..."
+Write-Host "[3/5] Applying schema to investment_forecaster..."
 
 & $psql -U $PgUser -h $PgHost -d investment_forecaster -f $SchemaFile
 Write-Host "  Schema applied"
 
 # ---------------------------------------------------------------------------
-# 5. Install Python dependencies
+# 4. Install Python dependencies
 # ---------------------------------------------------------------------------
 Write-Host ""
-Write-Host "[5/6] Installing Python dependencies..."
+Write-Host "[4/5] Installing Python dependencies..."
 
 Set-Location $RepoRoot
 pip install -r requirements.txt
 
 # ---------------------------------------------------------------------------
-# 6. Seed prompt registry
+# 5. Seed prompt registry
 # ---------------------------------------------------------------------------
 Write-Host ""
-Write-Host "[6/6] Seeding prompt registry..."
+Write-Host "[5/5] Seeding prompt registry..."
 
 python scripts/seed_prompt_registry.py
 

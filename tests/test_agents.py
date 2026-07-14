@@ -353,19 +353,21 @@ class TestAggregationAgent:
             {"final_probability": 0.8, "impact_magnitude": "critical", "impact_direction": "+"},
             {"final_probability": 0.6, "impact_magnitude": "high", "impact_direction": "+"},
         ]
-        score, upside, downside, ratio = AggregationAgent.compute_mechanical_score(questions)
+        score, upside, downside, ratio, scored_count = AggregationAgent.compute_mechanical_score(questions)
         assert score == 1.0
         assert downside == 0.0
         assert ratio is None  # guard against divide-by-zero when no downside exists
+        assert scored_count == 2
 
     def test_mechanical_score_all_risks_is_negative(self):
         from forecaster.agents.aggregation import AggregationAgent
         questions = [
             {"final_probability": 0.7, "impact_magnitude": "critical", "impact_direction": "-"},
         ]
-        score, upside, downside, ratio = AggregationAgent.compute_mechanical_score(questions)
+        score, upside, downside, ratio, scored_count = AggregationAgent.compute_mechanical_score(questions)
         assert score == -1.0
         assert upside == 0.0
+        assert scored_count == 1
 
     def test_mechanical_score_mixed_weighs_by_severity(self):
         from forecaster.agents.aggregation import AggregationAgent
@@ -375,16 +377,18 @@ class TestAggregationAgent:
             {"final_probability": 0.5, "impact_magnitude": "critical", "impact_direction": "+"},
             {"final_probability": 0.5, "impact_magnitude": "high", "impact_direction": "-"},
         ]
-        score, upside, downside, ratio = AggregationAgent.compute_mechanical_score(questions)
+        score, upside, downside, ratio, scored_count = AggregationAgent.compute_mechanical_score(questions)
         assert upside == 2.0
         assert downside == 1.5
         assert score > 0
+        assert scored_count == 2
 
     def test_mechanical_score_empty_questions_is_neutral(self):
         from forecaster.agents.aggregation import AggregationAgent
-        score, upside, downside, ratio = AggregationAgent.compute_mechanical_score([])
+        score, upside, downside, ratio, scored_count = AggregationAgent.compute_mechanical_score([])
         assert score == 0.0
         assert ratio is None
+        assert scored_count == 0
 
     def test_mechanical_score_ignores_medium_low_magnitude(self):
         """Only high/critical carry a severity weight — medium/low should
@@ -394,9 +398,10 @@ class TestAggregationAgent:
         questions = [
             {"final_probability": 0.9, "impact_magnitude": "medium", "impact_direction": "+"},
         ]
-        score, upside, downside, ratio = AggregationAgent.compute_mechanical_score(questions)
+        score, upside, downside, ratio, scored_count = AggregationAgent.compute_mechanical_score(questions)
         assert upside == 0.0
         assert score == 0.0
+        assert scored_count == 0  # medium magnitude never contributes a weight
 
     def test_clamp_adjustment_bounds_large_positive(self):
         from forecaster.agents.aggregation import AggregationAgent
@@ -488,3 +493,49 @@ class TestComputeAsymmetryAdjustment:
         from forecaster.agents.aggregation import AggregationAgent
         assert AggregationAgent.compute_asymmetry_adjustment("high") == 0.20
         assert AggregationAgent.compute_asymmetry_adjustment(" HIGH ") == 0.20
+
+
+class TestComputeLowNAdjustment:
+    """compute_mechanical_score pins the score to +/-1 whenever every scored
+    question lands on the same side of the ledger (guaranteed at n=1) --
+    compute_low_n_adjustment widens buy/sell thresholds toward hold as
+    scored_count drops below the full-decomposition count (4), tapering to
+    zero at and above it."""
+
+    def test_single_question_hits_max_adjustment(self):
+        from forecaster.agents.aggregation import AggregationAgent
+        assert AggregationAgent.compute_low_n_adjustment(1) == 0.20
+
+    def test_two_questions_is_two_thirds_of_max(self):
+        from forecaster.agents.aggregation import AggregationAgent
+        assert AggregationAgent.compute_low_n_adjustment(2) == pytest.approx(0.1333, abs=1e-4)
+
+    def test_three_questions_is_one_third_of_max(self):
+        from forecaster.agents.aggregation import AggregationAgent
+        assert AggregationAgent.compute_low_n_adjustment(3) == pytest.approx(0.0667, abs=1e-4)
+
+    def test_full_count_and_above_yields_zero(self):
+        from forecaster.agents.aggregation import AggregationAgent
+        assert AggregationAgent.compute_low_n_adjustment(4) == 0.0
+        assert AggregationAgent.compute_low_n_adjustment(7) == 0.0
+
+    def test_zero_questions_yields_zero(self):
+        """An empty scored set is handled by derive_recommendation's 'pass'
+        path, not a floored buy/sell -- no threshold widening needed."""
+        from forecaster.agents.aggregation import AggregationAgent
+        assert AggregationAgent.compute_low_n_adjustment(0) == 0.0
+
+    def test_widened_thresholds_flip_a_low_n_floored_score_to_hold(self):
+        """The scenario that motivated this: a single risk question floors
+        mechanical_score to -1.0 regardless of its probability. The base
+        -0.35 sell threshold would trigger sell; the n=1 widened threshold
+        should not."""
+        from forecaster.agents.aggregation import AggregationAgent
+        questions = [{"final_probability": 0.08, "impact_magnitude": "critical", "impact_direction": "-"}]
+        score, upside, downside, ratio, scored_count = AggregationAgent.compute_mechanical_score(questions)
+        assert score == -1.0
+        low_n_adjustment = AggregationAgent.compute_low_n_adjustment(scored_count)
+        sell_threshold = -0.35 - low_n_adjustment
+        assert AggregationAgent.derive_recommendation(
+            questions, score, None, sell_threshold=sell_threshold
+        ) == "sell"  # still floored past even the widened threshold -- signal isn't discarded

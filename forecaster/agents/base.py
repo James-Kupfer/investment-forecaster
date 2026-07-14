@@ -5,6 +5,7 @@ from typing import Optional
 
 import anthropic
 
+import forecaster.credentials  # noqa: F401 (loads ANTHROPIC_API_KEY into os.environ)
 from forecaster.db import db_cursor
 
 # (input_per_mtok, output_per_mtok, cached_input_per_mtok)

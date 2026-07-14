@@ -1,6 +1,5 @@
 anthropic>=0.40.0
 psycopg2-binary
-python-dotenv
 pandas
 requests
 yfinance

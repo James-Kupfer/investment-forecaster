@@ -9,9 +9,9 @@ import sys
 from pathlib import Path
 
 import psycopg2
-from dotenv import load_dotenv
 
-load_dotenv()
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+import forecaster.credentials  # noqa: F401,E402 (loads DB_*/ANTHROPIC_API_KEY into os.environ)
 
 _HOST = os.getenv('DB_HOST', 'localhost')
 _PORT = int(os.getenv('DB_PORT', '5432'))

@@ -122,7 +122,23 @@ class ForecastPipeline:
                 forecast_id=forecast_id, macro_state_id=macro_state_id,
             )
 
-            tech_context = get_technical_context(symbol)
+            # A price-data-source failure (e.g. this portfolio's "TICKER EXCHANGE"
+            # notation for foreign listings -- "MSI LSE" -- isn't a literal symbol
+            # either IBKR or Yahoo accepts) must not be fatal to the whole pipeline:
+            # question_definition/macroq/risk_judge already ran and cost real money
+            # by this point, and a missing technical evidence source is exactly the
+            # kind of gap elicitation.md is already designed to treat as neutral and
+            # disclose, not a reason to discard everything and produce no forecast.
+            tech_context = None
+            try:
+                tech_context = get_technical_context(symbol)
+            except Exception as exc:
+                logger.warning(
+                    "No technical/price data available for %s (%s) -- skipping "
+                    "Momentum/Trend/Volume/TechnicalJudge for this run",
+                    symbol, exc,
+                )
+
             earnings_result = primary_result = None
             if self._is_equity_like(position.get("instrument_type")):
                 earnings_result, primary_result = self._run_parallel([
@@ -141,21 +157,23 @@ class ForecastPipeline:
                     "issuer earnings/filings)", symbol, position.get("instrument_type"),
                 )
 
-            momentum_r, trend_r, volume_r = self._run_parallel([
-                lambda: MomentumAgent().run(
-                    symbol=symbol, tech_context=tech_context,
-                    forecast_id=forecast_id, macro_state_id=macro_state_id),
-                lambda: TrendAgent().run(
-                    symbol=symbol, tech_context=tech_context,
-                    forecast_id=forecast_id, macro_state_id=macro_state_id),
-                lambda: VolumeAgent().run(
-                    symbol=symbol, tech_context=tech_context,
-                    forecast_id=forecast_id, macro_state_id=macro_state_id),
-            ])
-            tech_judge_result = TechnicalJudgeAgent().run(
-                tech_results=[momentum_r, trend_r, volume_r],
-                forecast_id=forecast_id, macro_state_id=macro_state_id,
-            )
+            momentum_r = trend_r = volume_r = tech_judge_result = None
+            if tech_context is not None:
+                momentum_r, trend_r, volume_r = self._run_parallel([
+                    lambda: MomentumAgent().run(
+                        symbol=symbol, tech_context=tech_context,
+                        forecast_id=forecast_id, macro_state_id=macro_state_id),
+                    lambda: TrendAgent().run(
+                        symbol=symbol, tech_context=tech_context,
+                        forecast_id=forecast_id, macro_state_id=macro_state_id),
+                    lambda: VolumeAgent().run(
+                        symbol=symbol, tech_context=tech_context,
+                        forecast_id=forecast_id, macro_state_id=macro_state_id),
+                ])
+                tech_judge_result = TechnicalJudgeAgent().run(
+                    tech_results=[momentum_r, trend_r, volume_r],
+                    forecast_id=forecast_id, macro_state_id=macro_state_id,
+                )
 
             symbol_context = {
                 "macro": macro_result.output,

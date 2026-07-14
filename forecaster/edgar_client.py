@@ -10,7 +10,8 @@ degrade gracefully when these come back empty/None):
   - a forward-looking earnings calendar (EDGAR is a filing archive, not a calendar)
 
 SEC requires a descriptive User-Agent identifying the requester (fair access
-policy) — set SEC_EDGAR_USER_AGENT ("AppName/1.0 (contact@email)") in .env.
+policy) — SEC_EDGAR_USER_AGENT is read from the shared Secrets/SEC.py via
+forecaster.credentials (see CLAUDE.md's Database/Environment sections).
 Requests are rate-limited to stay well under SEC's ~10 req/sec guidance.
 """
 from __future__ import annotations
@@ -26,6 +27,8 @@ from xml.etree import ElementTree as ET
 
 import requests
 
+import forecaster.credentials  # noqa: F401 (loads SEC_EDGAR_USER_AGENT into os.environ)
+
 logger = logging.getLogger(__name__)
 
 _DEFAULT_UA = "investment-forecaster/1.0 (unset-contact@investment-forecaster.local)"
@@ -33,7 +36,7 @@ _UA = os.getenv("SEC_EDGAR_USER_AGENT") or _DEFAULT_UA
 if _UA == _DEFAULT_UA:
     logger.warning(
         "SEC_EDGAR_USER_AGENT not set — using a placeholder contact. SEC's fair-access policy "
-        "wants a real identifying email; set SEC_EDGAR_USER_AGENT in .env (see .env.example)."
+        "wants a real identifying email; add SEC_EDGAR_USER_AGENT to Secrets\\SEC.py."
     )
 _HEADERS = {"User-Agent": _UA, "Accept-Encoding": "gzip, deflate"}
 _MIN_INTERVAL = 0.12  # stay under SEC's ~10 req/sec guidance
