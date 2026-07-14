@@ -182,10 +182,17 @@
     "event_driven_basis": "[textual basis, or 'thesis is trend-based, not event-based' if defaulted false]",
     "scale_adjusted_density_flag": true,
     "confidence": "high|medium|low",
-    "rationale": "[under 500 words: state your conclusion, cite primary
-      evidence, and state what would change your assessment — including the
-      scale-adjusted density judgment, not just the base-rate floor. Begin
-      with a brief headline followed by a colon, then the statement.]"
+    "rationale": "[Bulleted list ('- ' per line, '\\n'-separated), not a single
+      dense paragraph — one bullet per distinct point, each beginning with a brief
+      headline followed by a colon, then the statement. Under 2000 words, but this is
+      a ceiling, not a target: reasoning quality matters more than length, so use as
+      many bullets as the judgment genuinely needs and no more. Cover, as separate
+      bullets, at least: your overall conclusion; the primary evidence behind the risk
+      landscape; the invq2_floor derivation (which floor rules triggered, on which
+      inferred flag, and why the maximum was taken); and the scale-adjusted density
+      judgment (why nearterm_critical_high_count is or isn't unusual for the inferred
+      scale_category) — not just the base-rate floor. Close with what would change your
+      assessment.]"
   }
 </output_schema>
 

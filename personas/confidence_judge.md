@@ -68,11 +68,15 @@
 
   Write sizing_rationale as exactly one sentence naming the primary driver of the
   haircut value selected.
-  Write calibration_notes identifying which shrinkage rules fired and the trigger
-  condition for each — this is read downstream by the aggregation agent when it
-  grades this question's overall rationale quality, so name the specific inputs and
-  values that drove each rule, not just which rule fired. Begin with a brief
-  headline followed by a colon, then the statement.
+  Write calibration_notes as a bulleted list ('- ' per line, '\n'-separated), not a
+  single dense paragraph — one bullet per distinct point, each beginning with a brief
+  headline followed by a colon, then the statement. This is read downstream by the
+  aggregation agent when it grades this question's overall rationale quality, so emit:
+  one bullet per shrinkage rule evaluated (A and B), naming for each whether it fired,
+  its trigger condition, and the specific inputs and values that drove it (not just
+  which rule fired); one bullet for the CI half-width tier applied and why; and one
+  bullet for the sizing_haircut tier selected and the condition that triggered it. Name
+  specific inputs and values, not just rule labels.
 </task>
 
 <constraints>

@@ -73,9 +73,12 @@
   Cap the absolute sum of all four shifts at 0.25.
   Set inside_view_prob = outside_view_prob + sum_of_shifts.
   Clamp inside_view_prob to [0.05, 0.95].
-  Write inside_view_factors as a single structured string covering all four factors, the
-  upstream confidence used to scale each, and their resulting shifts. Begin it with a
-  brief headline followed by a colon, then the statement.
+  Write inside_view_factors as a bulleted list ('- ' per line, '\n'-separated), not a
+  single dense string — lead with a one-line headline bullet summarizing the net tilt and
+  total shift, then one bullet per factor (a, b, c, d). Each bullet begins with a brief
+  headline followed by a colon, then the statement, and each factor bullet names that
+  input's upstream confidence, the base shift, the confidence-scaling applied, and the
+  resulting signed shift.
   When setting the final confidence field in Step 4, weigh how many of the four inputs were
   themselves high vs. low confidence — do not output "high" when most contributing evidence
   was low or medium confidence, even if the arithmetic produced a confident-looking number.
@@ -216,7 +219,7 @@
         "reference_class":       "Mid-cap technology companies with AI infrastructure revenue inflection guiding toward a specific segment-revenue-mix milestone within two quarters, in a macro tailwind",
         "base_rate":             0.38,
         "outside_view_prob":     0.38,
-        "inside_view_factors":   "Bullish tilt from earnings, tempered by low-confidence technical: (a) Primary evidence (earnings specialist, bullish, confidence=high): full-magnitude +0.05, citing accelerating AI infra bookings and conservative guidance; (b) Macro tailwind (confidence=medium): base +0.08 scaled to +0.04; (c) No incremental structural signal beyond primary_evidence: +0.00; (d) Bullish technical verdict (confidence=low): base +0.12 scaled to +0.03, timing signal only lightly weighted given low confidence. Total shift: +0.12.",
+        "inside_view_factors":   "- Net tilt: bullish, +0.12 total shift, tempered by a low-confidence technical read.\n- Primary evidence (earnings specialist, bullish, confidence=high): full-magnitude +0.05, citing accelerating AI infra bookings and conservative guidance.\n- Macro (tailwind, confidence=medium): base +0.08 scaled to +0.04.\n- Structural: no incremental signal beyond primary_evidence, +0.00.\n- Technical (bullish, confidence=low): base +0.12 scaled to +0.03, timing signal only lightly weighted given low confidence.",
         "inside_view_prob":      0.50,
         "failure_scenario":      "Hyperscalers redirect infrastructure spend from training to inference, delaying NOVA's AI infra segment mix crossing 30% until a later quarter even as absolute AI revenue keeps growing.",
         "failure_probability":   0.22,

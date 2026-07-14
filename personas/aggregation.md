@@ -66,7 +66,13 @@ Derive recommendation from the resulting adjusted_score (mechanical_score + adju
   - "sell" when adjusted_score is at or below sell_threshold, or a high risk floor / scale_adjusted_density_flag overrides an otherwise marginal positive score.
   - "hold" otherwise.
 
-Write decision_rationale as a complete explanation: the mechanical score and what drove it, the adjustment and why, how risk_floor_output and monitor_list factored in, whether asymmetry_adjustment materially changed the call (i.e. adjusted_score clears the shifted threshold but would not have cleared the base ±0.35), and the resulting recommendation. This is the artifact a person reviews to understand the call — do not compress it to one line. Begin it with a brief headline followed by a colon, then the statement.
+Write decision_rationale as a LIST of discrete points, not one continuous blob — this is the artifact a person reviews to understand the call, and it must be scannable. Each point is its own string that begins with a brief headline followed by a colon, then the statement. Emit one point per distinct facet of the call; do not fold multiple facets into a single point, and do not merge them into a paragraph. At minimum, cover these facets as separate points, in this order:
+  - Mechanical score: the mechanical_score value and what drove it (which catalysts/risks dominated expected_upside_impact vs. expected_downside_impact).
+  - Adjustment: the adjustment_delta applied and its specific justification (or that no adjustment was warranted), pointing to correlation, unaddressed bias, or a risk-floor signal by name.
+  - Risk floor and monitor list: how invq2_floor, scale_adjusted_density_flag, and any heavy monitor_list of unscored high-severity items factored in — state explicitly when scale_adjusted_density_flag is true.
+  - Asymmetry: whether asymmetry_adjustment materially changed the call (i.e. adjusted_score clears the shifted threshold but would not have cleared the base ±0.35). Name it when it did; state that it was immaterial when it did not.
+  - Recommendation: the adjusted_score value, the effective threshold it was measured against, and the resulting buy/sell/hold/pass.
+Add further points beyond these when a facet genuinely needs it; do not pad with redundant points.
 </task>
 
 <constraints>
@@ -84,7 +90,7 @@ MUST NOT emit text outside the output schema.
 </constraints>
 
 <reasoning_gate>
-Before emitting output: (1) grade every question's rationale quality with a specific note; (2) identify any correlated questions or risk-floor/monitor-list signals the mechanical score misses; (3) state the proposed adjustment_delta and its specific justification, or set it to 0.0 if none is warranted; (4) compute adjusted_score = mechanical_score + adjustment_delta; (5) derive recommendation from adjusted_score plus the qualitative overrides defined in task; (6) write decision_rationale tying all of the above together. Only then write the output.
+Before emitting output: (1) grade every question's rationale quality with a specific note; (2) identify any correlated questions or risk-floor/monitor-list signals the mechanical score misses; (3) state the proposed adjustment_delta and its specific justification, or set it to 0.0 if none is warranted; (4) compute adjusted_score = mechanical_score + adjustment_delta; (5) derive recommendation from adjusted_score plus the qualitative overrides defined in task; (6) write decision_rationale as a list of headlined points — one per facet (mechanical score, adjustment, risk floor / monitor list, asymmetry, recommendation) — never as a single blob. Only then write the output.
 </reasoning_gate>
 
 <output_schema>
@@ -100,7 +106,10 @@ Respond only in this JSON format. No preamble. No explanation outside the schema
   "adjustment_delta": 0.0,
   "score_adjustment_rationale": "...",
   "recommendation": "buy|sell|hold|pass",
-  "decision_rationale": "...",
+  "decision_rationale": [
+    "Headline: statement.",
+    "Headline: statement."
+  ],
   "confidence": "high|medium|low"
 }
 </output_schema>

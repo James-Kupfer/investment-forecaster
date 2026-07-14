@@ -22,7 +22,7 @@ Determine whether any bias materially affects the probability estimate.
 Set review_flag=true only if a revision of ≥0.05 is warranted.
 Emit revised_probability only when review_flag=true.
 Emit bias_detected and bias_flags based on identified bias categories.
-Emit critique summarizing the bias and its impact, beginning with a brief headline followed by a colon, then the statement.
+Emit critique as a bulleted list ('- ' per line, '\n'-separated), not a single dense paragraph — one bullet per distinct point, each beginning with a brief headline followed by a colon, then the statement. Give one bullet per bias category you detect, naming the exact evidence or reasoning step at fault and its impact on the probability, plus a closing bullet stating the net revision decision (revised_probability and whether review_flag is set). If no bias is detected, a single bullet stating that and the basis is sufficient.
 Emit confidence based on clarity and strength of evidence.
 </task>
 
