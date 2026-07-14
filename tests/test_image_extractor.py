@@ -1,14 +1,21 @@
+import importlib.util
 from pathlib import Path
 
-from forecaster.agents.technical_analysis.image_extractor import extract_images_from_pdf
+# image_extractor.py lives in "Technical Analysis/" (space in the folder name),
+# so it isn't a normal importable package — load it directly by file path.
+_MODULE_PATH = (
+    Path(__file__).resolve().parents[1] / "Technical Analysis" / "image_extractor.py"
+)
+_spec = importlib.util.spec_from_file_location("image_extractor", _MODULE_PATH)
+_image_extractor = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(_image_extractor)
+extract_images_from_pdf = _image_extractor.extract_images_from_pdf
 
 
 def test_extract_images_from_bulkowski_pdf(tmp_path):
     pdf_path = (
         Path(__file__).resolve().parents[1]
-        / "forecaster"
-        / "agents"
-        / "technical_analysis"
+        / "Technical Analysis"
         / "Bulkowski_Encyclopedia_of_Chart_Patterns.pdf"
     )
 
