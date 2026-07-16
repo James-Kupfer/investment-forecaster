@@ -55,10 +55,11 @@ MUST NOT fabricate a catalyst or risk that is not directly derived from the prov
 MUST reflect a Low profile_confidence in your own confidence output and name it in the overall rationale.
 MUST set confidence to one of: high|medium|low.
 MUST NOT include preamble or explanation outside the JSON output.
+MUST emit the output JSON object exactly once, as the last thing you write — MUST NOT draft it, reconsider, and then redraft or re-emit a second JSON object (whether a full repeat or a smaller closing summary). Do any reconsideration silently before writing any JSON.
 </constraints>
 
 <reasoning_gate>
-Before producing output, complete this reasoning in sequence: (1) Read all provided context fields, noting profile_confidence. (2) Enumerate every candidate catalyst from the thesis and every candidate risk from the risks field, each with a severity tag — set aside Medium/Low candidates with only a brief note. (3) Merge Critical/High catalyst/risk pairs that share an observable event. (4) For each surviving Critical/High candidate, assign a resolution_date (real, proxy, or none), advancing a past-due recurring date to its next future occurrence or discarding the candidate if none exists, then assign resolution_source and evidence_source. (5) Filter to ≤12-month, strictly-future resolvability; compute nearterm_critical_high_count from this filtered set, including cap overflow. (6) If more than 7 remain, apply the guaranteed-Critical + ranked-High selection from task step 9 — state which factors decided each borderline inclusion/exclusion, don't just assert severity and proximity. (7) Route everything not scored to monitor_list with the correct reason code. (8) If zero candidates exist at all, apply the no-fallback path from task step 12. Only then write the output.
+Before producing output, complete this reasoning in sequence: (1) Read all provided context fields, noting profile_confidence. (2) Enumerate every candidate catalyst from the thesis and every candidate risk from the risks field, each with a severity tag — set aside Medium/Low candidates with only a brief note. (3) Merge Critical/High catalyst/risk pairs that share an observable event. (4) For each surviving Critical/High candidate, assign a resolution_date (real, proxy, or none), advancing a past-due recurring date to its next future occurrence or discarding the candidate if none exists, then assign resolution_source and evidence_source. (5) Filter to ≤12-month, strictly-future resolvability; compute nearterm_critical_high_count from this filtered set, including cap overflow. (6) If more than 7 remain, apply the guaranteed-Critical + ranked-High selection from task step 9 — state which factors decided each borderline inclusion/exclusion, don't just assert severity and proximity. (7) Route everything not scored to monitor_list with the correct reason code. (8) If zero candidates exist at all, apply the no-fallback path from task step 12. Do all of this, including any reconsideration, before writing anything. Only then write the single output JSON object, once, with nothing after it.
 </reasoning_gate>
 
 <output_schema>
@@ -192,3 +193,7 @@ Medium (Likelihood-M/Impact-M): Term-premium risk — elevated Treasury issuance
 <calibration_anchor>
 Each scored question's forecast is independently Brier-scored on resolution, and this agent's own severity/date/merge/selection judgments are themselves subject to review — a wrongly-dropped Critical risk, a wrongly-merged pair, or a scoring-cap selection that ignores diversity distorts the downstream aggregation as much as a miscalibrated probability would.
 </calibration_anchor>
+
+<version>
+2.4
+</version>

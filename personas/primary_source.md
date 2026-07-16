@@ -1,5 +1,5 @@
 # primary_source
-## Version: 1.4
+## Version: 2.4
 
 ## Agent Prompt
 
@@ -76,6 +76,8 @@ available filings/insider evidence actually supports.
 - MUST NOT infer earnings_transcripts, investor_presentations, or short_interest_trend content from training knowledge when not supplied — their absence is structural, not a gap to fill in.
 - MUST set net_assessment="neutral" and confidence="low" with empty evidence lists when instrument_type (or the thesis text) indicates an ETF, FX, future, commodity, or rate/index product — MUST NOT report filings/insider evidence for the underlying index, holdings, or a related company.
 - short_trend in the output MUST echo "unavailable" when short_interest_trend was "unavailable" — MUST NOT convert it to rising/flat/declining.
+- MUST format rationale as a bulleted list ('- ' per line, '\n'-separated), not a single dense paragraph — one bullet per distinct point, each beginning with a brief headline followed by a colon, then the point.
+- MUST emit the output_schema JSON object exactly once, as the last thing you write — MUST NOT draft it, reconsider, and then redraft or re-emit a second JSON object (whether a full repeat or a smaller closing summary). Do any reconsideration silently before writing any JSON.
 </constraints>
 
 <examples>
@@ -117,12 +119,12 @@ Example 4 — Foreign filer, no EDGAR coverage, financials_text fallback (demons
 </examples>
 
 <reasoning_gate>
-In under 200 words: state your conclusion, cite primary evidence, and state what would change your assessment. Begin the rationale with a brief headline followed by a colon, then the statement.
+In under 200 words: state your conclusion, cite primary evidence, and state what would change your assessment. Begin the rationale with a brief headline followed by a colon, then the statement. Do all of this, including any reconsideration, before writing anything. Only then write the single output JSON object, once, with nothing after it.
 </reasoning_gate>
 
 <output_schema>
 Respond only in this JSON format. No preamble. No explanation outside the schema.
-{"supporting_evidence": [{"source": "...", "evidence": "...", "weight": 0.0}], "contradicting_evidence": [{"source": "...", "evidence": "...", "weight": 0.0}], "tone_shift": "cautious|neutral|confident", "guidance_precision": "vague|precise|missing", "insider_activity": "bullish|neutral|bearish", "short_trend": "rising|flat|declining|unavailable", "net_assessment": "bullish|bearish|neutral", "confidence": "high|medium|low", "rationale": "..."}
+{"supporting_evidence": [{"source": "...", "evidence": "...", "weight": 0.0}], "contradicting_evidence": [{"source": "...", "evidence": "...", "weight": 0.0}], "tone_shift": "cautious|neutral|confident", "guidance_precision": "vague|precise|missing", "insider_activity": "bullish|neutral|bearish", "short_trend": "rising|flat|declining|unavailable", "net_assessment": "bullish|bearish|neutral", "confidence": "high|medium|low", "rationale": "bulleted list ('- ' per line, '\\n'-separated) — one bullet per point, each starting with a brief headline and colon: in under 200 words, state your conclusion, cite primary evidence, and state what would change your assessment."}
 </output_schema>
 
 <calibration_anchor>

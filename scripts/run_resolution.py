@@ -1,25 +1,19 @@
 """
 Resolution job.
 
-Two independent passes (see
-C:\\Users\\james\\.claude\\plans\\i-updated-the-list-wise-pnueli.md):
+For every unresolved forecast_questions sub-question past its
+resolution_date (see C:\\Users\\james\\.claude\\plans\\i-updated-the-list-wise-pnueli.md):
+  - price-sourced: best-effort auto-resolve via yfinance, extracting a
+    $threshold and direction from the free-text resolution_criteria.
+  - filing/manual-sourced: CANNOT be auto-resolved. Event-based questions
+    forecast more accurately than price bets but require reading an actual
+    filing/press release to resolve — this is an accepted, documented
+    limitation, not a bug. These are surfaced in a needs-resolution report
+    for manual or LLM-assisted marking, not silently skipped or guessed.
 
-1. Legacy v1 forecasts (single-question model, invq1_p/invq2_p): unchanged
-   behavior, retained so historical unresolved rows from before the
-   decomposition pipeline still get scored.
-2. v2 forecast_questions (decomposition model): for every unresolved
-   sub-question past its resolution_date —
-     - price-sourced: best-effort auto-resolve via yfinance, extracting a
-       $threshold and direction from the free-text resolution_criteria.
-     - filing/manual-sourced: CANNOT be auto-resolved. Event-based questions
-       forecast more accurately than price bets but require reading an actual
-       filing/press release to resolve — this is an accepted, documented
-       limitation, not a bug. These are surfaced in a needs-resolution report
-       for manual or LLM-assisted marking, not silently skipped or guessed.
-
-Both passes compute Brier scores and update agent_weights rolling accuracy;
-the v2 pass keys accuracy by question_type (catalyst|risk) so calibration
-accrues separately for each, per confidence_judge model.
+Computes Brier scores and updates agent_weights rolling accuracy, keyed by
+question_type (catalyst|risk) so calibration accrues separately for each,
+per confidence_judge model.
 
 Note: positions thresholds/symbols are read from the portfolio database
 separately; PostgreSQL does not support cross-database queries.
@@ -32,6 +26,8 @@ from pathlib import Path
 from typing import Optional
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from forecaster.config import SecretsNotFoundError
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
@@ -88,108 +84,7 @@ def _update_agent_weight(cur, agent_id: str, question_type: str, model_id: str, 
 
 
 # ----------------------------------------------------------------------
-# Pass 1 — legacy v1 single-question forecasts (retained for historical rows)
-# ----------------------------------------------------------------------
-
-def resolve_legacy_forecast(row: tuple, upside_threshold: float, drawdown_threshold: float) -> None:
-    from forecaster.db import db_cursor
-
-    (
-        forecast_id, symbol, resolution_date_str, forecast_date_str,
-        invq1_p, invq2_p, invq1_model, invq2_model,
-    ) = row
-
-    resolution_date = date.fromisoformat(str(resolution_date_str))
-    forecast_date = date.fromisoformat(str(forecast_date_str))
-
-    price_forecast = _price_on_date_approx(symbol, forecast_date)
-    price_resolved = _price_on_date_approx(symbol, resolution_date)
-
-    if price_forecast is None or price_resolved is None or price_forecast == 0:
-        logger.warning(
-            "forecast_id=%d: could not fetch prices for %s — skipping",
-            forecast_id, symbol,
-        )
-        return
-
-    pct_change = (price_resolved - price_forecast) / price_forecast
-
-    outcome_q1 = 1 if pct_change >= float(upside_threshold or 0.20) else 0
-    outcome_q2 = 1 if pct_change <= -float(drawdown_threshold or 0.20) else 0
-
-    brier_q1 = _brier(invq1_p, outcome_q1)
-    brier_q2 = _brier(invq2_p, outcome_q2)
-
-    resolved_outcome = (
-        f"pct_change={pct_change:.4f} "
-        f"outcome_q1={outcome_q1} outcome_q2={outcome_q2}"
-    )
-
-    with db_cursor() as cur:
-        cur.execute(
-            """
-            UPDATE forecasts
-            SET resolved = TRUE,
-                resolved_outcome = %s,
-                brier_q1 = %s,
-                brier_q2 = %s
-            WHERE id = %s
-            """,
-            (resolved_outcome, brier_q1, brier_q2, forecast_id),
-        )
-        if brier_q1 is not None and invq1_model:
-            _update_agent_weight(cur, "aggregation", "invq1", invq1_model, brier_q1)
-        if brier_q2 is not None and invq2_model:
-            _update_agent_weight(cur, "aggregation", "invq2", invq2_model, brier_q2)
-
-    logger.info(
-        "forecast_id=%d %s resolved (legacy v1): pct_change=%.2f%% q1=%d(b=%.4f) q2=%d(b=%.4f)",
-        forecast_id, symbol, pct_change * 100,
-        outcome_q1, brier_q1 or 0,
-        outcome_q2, brier_q2 or 0,
-    )
-
-
-def resolve_legacy_pass() -> None:
-    from forecaster.db import db_cursor, portfolio_db_cursor
-
-    with portfolio_db_cursor() as cur:
-        cur.execute("SELECT symbol, upside_threshold, drawdown_threshold FROM positions")
-        thresholds = {row[0]: (row[1], row[2]) for row in cur.fetchall()}
-
-    today = date.today().isoformat()
-    with db_cursor() as cur:
-        cur.execute(
-            """
-            SELECT
-                id, symbol, resolution_date, forecast_date,
-                invq1_p, invq2_p, invq1_model, invq2_model
-            FROM forecasts
-            WHERE resolved = FALSE
-              AND resolution_date <= %s
-              AND (invq1_p IS NOT NULL OR invq2_p IS NOT NULL)
-            ORDER BY resolution_date
-            """,
-            (today,),
-        )
-        rows = cur.fetchall()
-
-    if not rows:
-        logger.info("No unresolved legacy v1 forecasts past resolution_date")
-        return
-
-    logger.info("Resolving %d legacy v1 forecasts", len(rows))
-    for row in rows:
-        symbol = row[1]
-        upside, drawdown = thresholds.get(symbol, (0.20, 0.20))
-        try:
-            resolve_legacy_forecast(tuple(row), upside, drawdown)
-        except Exception as exc:
-            logger.error("forecast_id=%s failed: %s", row[0], exc)
-
-
-# ----------------------------------------------------------------------
-# Pass 2 — v2 decomposed forecast_questions
+# v2 decomposed forecast_questions
 # ----------------------------------------------------------------------
 
 def _extract_price_threshold(resolution_criteria: str) -> Optional[tuple]:
@@ -314,9 +209,12 @@ def resolve_forecast_questions_pass() -> None:
 
 
 def main() -> None:
-    resolve_legacy_pass()
     resolve_forecast_questions_pass()
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except SecretsNotFoundError as exc:
+        logger.error(str(exc))
+        sys.exit(1)

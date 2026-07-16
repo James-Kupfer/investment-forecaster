@@ -4,12 +4,17 @@ import re
 
 def extract_json(text: str) -> dict:
     """
-    Extract a JSON object from LLM response text. Prefers the LAST
-    successfully-parsed top-level {...} block, not the first: models
-    occasionally emit a draft object, then narrate a self-correction
-    ("...correcting to the required schema:") followed by a second, complete
-    object — the first is usually a partial/malformed draft, the last is the
-    one that was actually intended as the answer.
+    Extract a JSON object from LLM response text. Prefers the candidate with
+    the MOST keys, not simply the last one: models occasionally emit a draft
+    object, then narrate a self-correction ("...correcting to the required
+    schema:") followed by a second, complete object, and the more-complete
+    one is what was actually intended (ties go to the later candidate, which
+    still favors a self-correction over its draft). A strictly-last-wins rule
+    is not safe on its own — observed live on a confidence_judge response that
+    included the literal aside "Elicitation agent output is empty ({})" in
+    its trailing prose; the brace-depth scanner below correctly parses that
+    "{}" as a valid empty top-level object, and being last, it would silently
+    discard the real, complete answer that preceded it.
     """
     stripped = text.strip()
     try:
@@ -55,6 +60,6 @@ def extract_json(text: str) -> dict:
             parsed = json.loads(candidate)
         except json.JSONDecodeError:
             continue
-        if isinstance(parsed, dict):
-            result = parsed  # last successful parse wins
+        if isinstance(parsed, dict) and len(parsed) >= len(result):
+            result = parsed  # most keys wins; later candidate breaks ties
     return result

@@ -66,13 +66,13 @@ Derive recommendation from the resulting adjusted_score (mechanical_score + adju
   - "sell" when adjusted_score is at or below sell_threshold, or a high risk floor / scale_adjusted_density_flag overrides an otherwise marginal positive score.
   - "hold" otherwise.
 
-Write decision_rationale as a LIST of discrete points, not one continuous blob — this is the artifact a person reviews to understand the call, and it must be scannable. Each point is its own string that begins with a brief headline followed by a colon, then the statement. Emit one point per distinct facet of the call; do not fold multiple facets into a single point, and do not merge them into a paragraph. At minimum, cover these facets as separate points, in this order:
+Write decision_rationale as a single JSON string containing one bulleted line per distinct facet, not one continuous prose paragraph — this is the artifact a person reviews to understand the call, and it must be scannable. Each line is "- "-prefixed and "\n"-separated from the next, and begins with a brief headline followed by a colon, then the statement. Emit one line per distinct facet of the call; do not fold multiple facets into a single line, and do not merge them into a paragraph. At minimum, cover these facets as separate lines, in this order:
   - Mechanical score: the mechanical_score value and what drove it (which catalysts/risks dominated expected_upside_impact vs. expected_downside_impact).
   - Adjustment: the adjustment_delta applied and its specific justification (or that no adjustment was warranted), pointing to correlation, unaddressed bias, or a risk-floor signal by name.
   - Risk floor and monitor list: how invq2_floor, scale_adjusted_density_flag, and any heavy monitor_list of unscored high-severity items factored in — state explicitly when scale_adjusted_density_flag is true.
   - Asymmetry: whether asymmetry_adjustment materially changed the call (i.e. adjusted_score clears the shifted threshold but would not have cleared the base ±0.35). Name it when it did; state that it was immaterial when it did not.
   - Recommendation: the adjusted_score value, the effective threshold it was measured against, and the resulting buy/sell/hold/pass.
-Add further points beyond these when a facet genuinely needs it; do not pad with redundant points.
+Add further lines beyond these when a facet genuinely needs it; do not pad with redundant lines.
 </task>
 
 <constraints>
@@ -87,10 +87,12 @@ MUST set recommendation to "pass" when questions is empty, regardless of any oth
 MUST weigh risk_floor_output.scale_adjusted_density_flag explicitly in decision_rationale when it is true — MUST NOT ignore an elevated, scale-adjusted question density.
 MUST use only buy|sell|hold|pass for recommendation.
 MUST NOT emit text outside the output schema.
-</constraints>
+MUST write the decision_rationale as a bulleted list (one bullet per distinct point, "- " prefixed, "\n"-separated within the JSON string), not a single dense paragraph. Each bullet covers one point only, and each bullet begins with a brief headline followed by a colon, then the point (e.g. "- description here...").
+MUST emit the output_schema JSON object exactly once, as the last thing you write — MUST NOT draft it, reconsider, and then redraft or re-emit a second JSON object (whether a full repeat or a smaller closing summary). If you need to reconsider the score, threshold comparison, or recommendation, do that reasoning silently per reasoning_gate before writing any JSON — never by writing one object, second-guessing it in visible text, and writing another. A second emitted object risks downstream parsing keeping the wrong one and silently dropping question_grades/adjustment_delta/score_adjustment_rationale.
+
 
 <reasoning_gate>
-Before emitting output: (1) grade every question's rationale quality with a specific note; (2) identify any correlated questions or risk-floor/monitor-list signals the mechanical score misses; (3) state the proposed adjustment_delta and its specific justification, or set it to 0.0 if none is warranted; (4) compute adjusted_score = mechanical_score + adjustment_delta; (5) derive recommendation from adjusted_score plus the qualitative overrides defined in task; (6) write decision_rationale as a list of headlined points — one per facet (mechanical score, adjustment, risk floor / monitor list, asymmetry, recommendation) — never as a single blob. Only then write the output.
+Before emitting output: (1) grade every question's rationale quality with a specific note; (2) identify any correlated questions or risk-floor/monitor-list signals the mechanical score misses; (3) state the proposed adjustment_delta and its specific justification, or set it to 0.0 if none is warranted; (4) compute adjusted_score = mechanical_score + adjustment_delta; (5) derive recommendation from adjusted_score plus the qualitative overrides defined in task; (6) write decision_rationale as a single string of "- "-prefixed, "\n"-separated headlined lines — one per facet (mechanical score, adjustment, risk floor / monitor list, asymmetry, recommendation) — never as one continuous, unbulleted paragraph. Do all of this reasoning, including any reconsideration of it, before writing anything. Only then write the single output JSON object, once, with nothing after it.
 </reasoning_gate>
 
 <output_schema>
@@ -106,10 +108,7 @@ Respond only in this JSON format. No preamble. No explanation outside the schema
   "adjustment_delta": 0.0,
   "score_adjustment_rationale": "...",
   "recommendation": "buy|sell|hold|pass",
-  "decision_rationale": [
-    "Headline: statement.",
-    "Headline: statement."
-  ],
+  "decision_rationale": "- Headline: statement.\n- Headline: statement.",
   "confidence": "high|medium|low"
 }
 </output_schema>
@@ -117,3 +116,7 @@ Respond only in this JSON format. No preamble. No explanation outside the schema
 <calibration_anchor>
 adjusted_score and mechanical_score are both retained and independently Brier-scored against resolved sub-question outcomes — if adjusted_score is not better calibrated than mechanical_score over time, the adjustment mechanism itself (not just its inputs) is reviewed for recalibration.
 </calibration_anchor>
+
+<version>
+v2.4
+</version>

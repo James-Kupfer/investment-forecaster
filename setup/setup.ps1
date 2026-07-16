@@ -1,23 +1,53 @@
 # investment-forecaster setup script
-# Reads credentials from C:\Users\james\GitHub\Secrets\
-# Run from the repo root:  .\setup\setup.ps1
+# Reads the Secrets folder location from config.toml (or FORECASTER_SECRETS_DIR)
+# -- see config.example.toml. Run from the repo root:  .\setup\setup.ps1
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-$RepoRoot      = Split-Path $PSScriptRoot -Parent
-$SecretsDir    = "C:\Users\james\GitHub\Secrets"
-$PgSecretsFile = Join-Path $SecretsDir "postgres.py"
-$AnthropicFile = Join-Path $SecretsDir "anthropic.py"
-$SchemaFile    = Join-Path $RepoRoot "setup\create_schema_postgres.sql"
+$RepoRoot   = Split-Path $PSScriptRoot -Parent
+$ConfigFile = Join-Path $RepoRoot "config.toml"
+$SchemaFile = Join-Path $RepoRoot "setup\create_schema_postgres.sql"
 
 Write-Host ""
 Write-Host "=== investment-forecaster setup ===" -ForegroundColor Cyan
 
 # ---------------------------------------------------------------------------
-# 1. Verify credentials are available in the shared secrets files
+# 1. Resolve the Secrets folder and verify credentials are available there
 #    (forecaster/credentials.py reads these directly at runtime — no .env)
 # ---------------------------------------------------------------------------
+Write-Host ""
+Write-Host "[1/5] Resolving Secrets folder..."
+
+if ($env:FORECASTER_SECRETS_DIR) {
+    $SecretsDir = ($env:FORECASTER_SECRETS_DIR -split [System.IO.Path]::PathSeparator)[0]
+} elseif (Test-Path $ConfigFile) {
+    $SecretsDir = python -c "
+import sys
+if sys.version_info >= (3, 11):
+    import tomllib
+else:
+    import tomli as tomllib
+with open(r'$ConfigFile', 'rb') as f:
+    cfg = tomllib.load(f)
+override = cfg.get('secrets', {}).get('override', [])
+override = [override] if isinstance(override, str) else list(override)
+print(override[0] if override else '')
+"
+} else {
+    Write-Error "Neither FORECASTER_SECRETS_DIR nor $ConfigFile is set. Copy config.example.toml to config.toml and set [secrets] override to your Secrets folder first."
+    exit 1
+}
+
+if (-not $SecretsDir) {
+    Write-Error "Could not resolve a Secrets folder from config.toml or FORECASTER_SECRETS_DIR."
+    exit 1
+}
+
+$PgSecretsFile = Join-Path $SecretsDir "postgres.py"
+$AnthropicFile = Join-Path $SecretsDir "Anthropic.py"
+
+Write-Host "  Using Secrets folder: $SecretsDir"
 Write-Host ""
 Write-Host "[1/5] Verifying credentials in $SecretsDir..."
 

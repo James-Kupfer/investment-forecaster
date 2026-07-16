@@ -1,5 +1,5 @@
 # volume
-## Version: 1.0
+## Version: 2.4
 
 ## Agent Prompt
 
@@ -36,6 +36,8 @@ You receive recent volume and price data for a specific equity and classify whet
 - MUST set confidence=low if volume_series contains fewer than 10 data points.
 - MUST NOT classify declining volume on declining price as bearish — this is accumulation (natural pullback on low interest) and MUST be noted as neutral to bullish.
 - MUST NOT set both distribution_flag=true and accumulation_flag=true simultaneously.
+- MUST format rationale as a bulleted list ('- ' per line, '\n'-separated), not a single dense paragraph — one bullet per distinct point, each beginning with a brief headline followed by a colon, then the point.
+- MUST emit the output_schema JSON object exactly once, as the last thing you write — MUST NOT draft it, reconsider, and then redraft or re-emit a second JSON object (whether a full repeat or a smaller closing summary). Do any reconsideration silently before writing any JSON.
 </constraints>
 
 <examples>
@@ -68,12 +70,12 @@ Example 4 — Accumulation (demonstrates: falling price on falling volume is NOT
 </examples>
 
 <reasoning_gate>
-In under 200 words: state your conclusion, cite primary evidence, and state what would change your assessment. Begin the rationale with a brief headline followed by a colon, then the statement.
+In under 200 words: state your conclusion, cite primary evidence, and state what would change your assessment. Begin the rationale with a brief headline followed by a colon, then the statement. Do all of this, including any reconsideration, before writing anything. Only then write the single output JSON object, once, with nothing after it.
 </reasoning_gate>
 
 <output_schema>
 Respond only in this JSON format. No preamble. No explanation outside the schema.
-{"recent_volume_trend": "expanding|declining|stable", "volume_vs_ma": "above|at|below", "price_direction": "up|down|sideways", "volume_signal": "confirming|diverging|neutral", "distribution_flag": false, "accumulation_flag": false, "climax_volume_flag": false, "volume_assessment": "...", "confidence": "high|medium|low", "rationale": "..."}
+{"recent_volume_trend": "expanding|declining|stable", "volume_vs_ma": "above|at|below", "price_direction": "up|down|sideways", "volume_signal": "confirming|diverging|neutral", "distribution_flag": false, "accumulation_flag": false, "climax_volume_flag": false, "volume_assessment": "...", "confidence": "high|medium|low", "rationale": "bulleted list ('- ' per line, '\\n'-separated) — one bullet per point, each starting with a brief headline and colon: in under 200 words, state your conclusion, cite primary evidence, and state what would change your assessment."}
 </output_schema>
 
 <calibration_anchor>

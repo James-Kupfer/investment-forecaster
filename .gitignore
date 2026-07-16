@@ -216,3 +216,7 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# investment-forecaster local config (see config.example.toml for the template)
+config.toml
+CLAUDE.md

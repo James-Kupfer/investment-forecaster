@@ -1,8 +1,10 @@
 """
 Market data fetching: IBKR Client Portal API (primary) with Yahoo Finance direct fallback.
 
-IBKR_GATEWAY_URL env var sets the Client Portal Gateway base URL
-(default https://localhost:5000). The gateway uses a self-signed TLS cert;
+The Client Portal Gateway base URL comes from config.toml's [market_data]
+ibkr_gateway_url, defaulting to config.example.toml's value (not a Python
+literal here -- see forecaster/config.py's MARKET_DATA merge); the
+IBKR_GATEWAY_URL env var overrides it when set. The gateway uses a self-signed TLS cert;
 InsecureRequestWarning is suppressed module-wide.
 
 Yahoo Finance fallback hits query1.finance.yahoo.com directly (v8 chart API) instead
@@ -21,9 +23,11 @@ from typing import Optional
 import pandas as pd
 import urllib3
 
+from forecaster.config import MARKET_DATA
+
 logger = logging.getLogger(__name__)
 
-_IBKR_BASE = os.getenv("IBKR_GATEWAY_URL", "https://localhost:5000")
+_IBKR_BASE = os.getenv("IBKR_GATEWAY_URL", MARKET_DATA["ibkr_gateway_url"])
 
 # MCP enum names → IBKR REST API period strings
 _PERIOD_MAP: dict[str, str] = {

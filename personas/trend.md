@@ -1,5 +1,5 @@
 # trend
-## Version: 1.0
+## Version: 2.4
 
 ## Agent Prompt
 
@@ -38,6 +38,7 @@ You receive moving average levels and ADX value for a specific equity and classi
 - MUST set trend_signal=downtrend only when MA alignment=bearish AND adx_value ≥ 25.
 - MUST NOT flag golden_cross=true for crossovers that occurred more than 20 trading days ago — stale crossovers are already priced in and MUST be set to false.
 - MUST identify key_level as the nearest MA to current price that acts as support or resistance — MUST NOT leave key_level as 0.0 unless no MA data is provided.
+- MUST emit the output_schema JSON object exactly once, as the last thing you write — MUST NOT draft it, reconsider, and then redraft or re-emit a second JSON object (whether a full repeat or a smaller closing summary). Do any reconsideration silently before writing any JSON.
 </constraints>
 
 <examples>
@@ -70,7 +71,7 @@ Example 3 — Partial MA alignment, transitional regime (demonstrates: partial a
 </examples>
 
 <reasoning_gate>
-In under 200 words: state your conclusion, cite primary evidence, and state what would change your assessment. Begin the rationale with a brief headline followed by a colon, then the statement — e.g. "Confirmed uptrend: perfect bullish MA stack with ADX confirming trending regime."
+In under 200 words: state your conclusion, cite primary evidence, and state what would change your assessment. Begin the rationale with a brief headline followed by a colon, then the statement — e.g. "Confirmed uptrend: perfect bullish MA stack with ADX confirming trending regime." Do all of this, including any reconsideration, before writing anything. Only then write the single output JSON object, once, with nothing after it.
 </reasoning_gate>
 
 <output_schema>

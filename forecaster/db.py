@@ -4,13 +4,21 @@ from contextlib import contextmanager
 import psycopg2
 
 import forecaster.credentials  # noqa: F401 (loads DB_*/ANTHROPIC_API_KEY into os.environ)
+from forecaster.config import DATABASE
 
+# host/user/password are secrets (from the Secrets folder via credentials.py)
+# -- never sourced from config.toml, and no Python-literal fallback here
+# either (DB_HOST has none for the same reason -- see credentials.py; USER/
+# PASSWORD have no safe universal default so an empty password is the only
+# sane fallback). port/name/portfolio_db_name DO have safe universal
+# defaults, but those live in config.example.toml, not duplicated here as
+# Python literals -- see forecaster/config.py's DATABASE merge.
 _HOST = os.getenv('DB_HOST', 'localhost')
-_PORT = int(os.getenv('DB_PORT', '5432'))
-_NAME = os.getenv('DB_NAME', 'investment_forecaster')
+_PORT = int(os.getenv('DB_PORT', DATABASE['port']))
+_NAME = os.getenv('DB_NAME', DATABASE['name'])
 _USER = os.getenv('DB_USER', 'postgres')
 _PASSWORD = os.getenv('DB_PASSWORD', '')
-_PORTFOLIO_NAME = os.getenv('PORTFOLIO_DB_NAME', 'investment_portfolio')
+_PORTFOLIO_NAME = os.getenv('PORTFOLIO_DB_NAME', DATABASE['portfolio_db_name'])
 
 
 def get_connection() -> psycopg2.extensions.connection:

@@ -87,17 +87,26 @@
   MUST select exactly one sizing_haircut from {0.00, 0.25, 0.50, 0.75}.
   MUST NOT interpolate between haircut tiers.
   MUST NOT incorporate qualitative judgment beyond the supplied inputs.
+  MUST format rationale as a bulleted list ('- ' per line, '\n'-separated), not a single
+  dense paragraph — one bullet per distinct point, each beginning with a brief headline
+  followed by a colon, then the point.
   MUST set sizing_haircut to 0.75 and note the anomaly in calibration_notes when
   review_flag is true but revised_probability is absent.
   MUST set sizing_haircut to 0.75 and note the anomaly in calibration_notes when
   elicitation_final_prob is absent and review_flag is false.
+  MUST emit the output_schema JSON object exactly once, as the last thing you write —
+  MUST NOT draft it, reconsider, and then redraft or re-emit a second JSON object
+  (whether a full repeat or a smaller closing summary). Do any reconsideration
+  silently before writing any JSON.
 </constraints>
 
 <reasoning_gate>
   Before emitting output: state the base_probability source, evaluate each shrinkage
   rule with its trigger condition and the probability value before and after, confirm
   the CI half-width rule applied, and state the first matching haircut tier with the
-  condition that triggered it.
+  condition that triggered it. Do all of this, including any reconsideration, before
+  writing anything. Only then write the single output JSON object, once, with nothing
+  after it.
 </reasoning_gate>
 
 <output_schema>
@@ -113,10 +122,7 @@
     "sizing_rationale":        "...",
     "confidence":              "high|medium|low",
     "calibration_notes":       "...",
-    "rationale":               "In under 200 words: state your conclusion, cite
-                                primary evidence, and state what would change
-                                your assessment. Begin with a brief headline
-                                followed by a colon, then the statement."
+    "rationale":               "bulleted list ('- ' per line, '\\n'-separated) — one bullet per point, each starting with a brief headline and colon: in under 500 words, state your conclusion, cite primary evidence, and state what would change your assessment."
   }
 </output_schema>
 
@@ -125,3 +131,7 @@
   decisions are audited against realized volatility and over-sizing or under-sizing
   bias triggers shrinkage rule review.
 </calibration_anchor>
+
+<version>
+2.4
+</version>

@@ -53,12 +53,17 @@
   MUST NOT use free-form text in rates_signal, dxy_signal, vix_signal, or
     sector_signal fields — enumerated values only.
   MUST NOT emit composite_confidence values other than "high", "medium", or "low".
+  MUST emit the output_schema JSON exactly once, as the last thing you write —
+  MUST NOT draft it, reconsider, and then redraft or re-emit a second JSON object
+  (whether a full repeat or a smaller closing summary). Do any reconsideration
+  silently before writing any JSON.
 </constraints>
 
 <reasoning_gate>
   Before emitting JSON, state in plain text: the categorical bucket for each
   of the four inputs, any conflicting signals, and the dominant regime
-  interpretation you derive. Then emit the JSON.
+  interpretation you derive. Do all of this, including any reconsideration,
+  before writing anything. Only then emit the JSON, once, with nothing after it.
 </reasoning_gate>
 
 <output_schema>
@@ -128,3 +133,7 @@
   against equity index returns over the subsequent 30-day and 90-day windows;
   systematic over- or under-confidence triggers threshold recalibration.
 </calibration_anchor>
+
+<version>
+2.4
+</version>

@@ -61,7 +61,7 @@ AGENT_MODELS: dict[str, str] = {
 
  # Probability calibrator: shrinkage, confidence interval, and rationale
  # for one sub-question's final calibrated probability.
- "confidence_judge": "claude-haiku-4-5-20251001",
+ "confidence_judge": "claude-haiku-4-5-20251001", #"claude-sonnet-5",
 
  # --- Stage D: aggregate (once) ---
  # Final decision agent: grades each sub-question's rationale quality,

@@ -32,6 +32,13 @@ Emit confidence based on signal alignment strength.
   MUST NOT alter field names from the starter schema.
   MUST NOT introduce new output fields.
   MUST NOT emit any serialization format other than JSON.
+  MUST format rationale as a bulleted list ('- ' per line, '\n'-separated), not a
+  single dense paragraph — one bullet per distinct point, each beginning with a brief
+  headline followed by a colon, then the point.
+  MUST emit the output_schema JSON object exactly once, as the last thing you write —
+  MUST NOT draft it, reconsider, and then redraft or re-emit a second JSON object
+  (whether a full repeat or a smaller closing summary). Do any reconsideration
+  silently before writing any JSON.
 </constraints>
 
 <examples>
@@ -83,6 +90,8 @@ Emit confidence based on signal alignment strength.
 
 <reasoning_gate>
 Before emitting your decision, evaluate RSI regime, MACD momentum, signal alignment, and divergence_flag.
+Do all of this, including any reconsideration, before writing anything. Only then write
+the single output JSON object, once, with nothing after it.
 </reasoning_gate>
 
 <output_schema>
@@ -95,7 +104,7 @@ Respond only in this JSON format. No preamble. No explanation outside the schema
   "momentum_signal": "bullish|bearish|neutral",
   "divergence_flag": false,
   "confidence": "high|medium|low",
-  "rationale": "In under 200 words: state your conclusion, cite primary evidence, and state what would change your assessment. Begin with a brief headline followed by a colon, then the statement."
+  "rationale": "bulleted list ('- ' per line, '\\n'-separated) — one bullet per point, each starting with a brief headline and colon: in under 200 words, state your conclusion, cite primary evidence, and state what would change your assessment."
 }
 </output_schema>
 
@@ -104,5 +113,5 @@ Momentum classifications are evaluated against subsequent price movement to asse
 </calibration_anchor>
 
 <version>
-1.0
+2.4
 </version>

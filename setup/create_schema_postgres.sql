@@ -45,11 +45,6 @@ CREATE TABLE IF NOT EXISTS forecasts (
     forecast_date                   DATE            NOT NULL,
     resolution_date                 DATE,
     -- question definition
-    invq3_definition                TEXT,
-    invq3_definition_confidence     VARCHAR(10),
-    invq3_definition_rationale      TEXT,
-    invq3_def_model                 VARCHAR(100),
-    invq3_def_prompt_version        INTEGER,
     question_def_output             TEXT,
     -- macroq
     macroq_node_id                  VARCHAR(50),
@@ -119,53 +114,9 @@ CREATE TABLE IF NOT EXISTS forecasts (
     technical_judge_model           VARCHAR(100),
     technical_judge_prompt_version  INTEGER,
     technical_judge_output          TEXT,
-    -- elicitation (invq3)
-    invq3_p                         NUMERIC(5,4),
-    invq3_confidence                VARCHAR(10),
-    invq3_rationale                 TEXT,
-    invq3_model                     VARCHAR(100),
-    invq3_prompt_version            INTEGER,
-    elicitation_output              TEXT,
-    -- review
-    review_flag                     BOOLEAN,
-    review_rationale                TEXT,
-    review_confidence               VARCHAR(10),
-    review_model                    VARCHAR(100),
-    review_prompt_version           INTEGER,
-    review_output                   TEXT,
-    -- confidence judge
-    base_case_p                     NUMERIC(5,4),
-    ci_low                          NUMERIC(5,4),
-    ci_high                         NUMERIC(5,4),
-    sizing_haircut                  NUMERIC(5,4),
-    confidence_rationale            TEXT,
-    confidence_confidence           VARCHAR(10),
-    confidence_judge_model          VARCHAR(100),
-    confidence_prompt_version       INTEGER,
-    confidence_judge_output         TEXT,
-    -- aggregation (invq1 = upside, invq2 = downside)
-    invq1_p                         NUMERIC(5,4),
-    invq1_confidence                VARCHAR(10),
-    invq1_rationale                 TEXT,
-    invq1_model                     VARCHAR(100),
-    invq1_prompt_version            INTEGER,
-    invq2_p                         NUMERIC(5,4),
-    invq2_confidence                VARCHAR(10),
-    invq2_rationale                 TEXT,
-    invq2_model                     VARCHAR(100),
-    invq2_prompt_version            INTEGER,
-    -- legacy single-question model (v1) — retained nullable for historical rows only;
-    -- the v2 decomposition pipeline (see forecast_questions below) never writes these
-    compound_conviction             NUMERIC(5,4),
-    asymmetry_ratio                 NUMERIC(8,4),
+    -- aggregation (final recommendation)
     recommendation                  VARCHAR(20),
     aggregation_output              TEXT,
-    -- resolution / brier scoring (legacy, v1 single-question)
-    resolved                        BOOLEAN         NOT NULL DEFAULT FALSE,
-    resolved_outcome                TEXT,
-    brier_q1                        NUMERIC(8,6),
-    brier_q2                        NUMERIC(8,6),
-    brier_q3                        NUMERIC(8,6),
     -- v2 decomposition pipeline: weighted-EV aggregation over forecast_questions
     mechanical_score                NUMERIC(8,4),
     adjusted_score                  NUMERIC(8,4),

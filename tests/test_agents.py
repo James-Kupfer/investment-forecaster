@@ -100,6 +100,26 @@ class TestExtractJson:
         text = '{"question_grades": [{"question_index": 0, "score": 0.5}], "decision_rationale": "cut off mid'
         assert extract_json(text) == {}
 
+    def test_incidental_empty_braces_in_trailing_prose_do_not_win(self):
+        """A confidence_judge response emitted a complete, valid answer, then
+        kept narrating in prose afterward and used the literal phrase "empty
+        ({})" to describe an upstream failure -- a real, syntactically valid
+        empty object sitting outside any string. Under a strict last-wins
+        rule this silently became the final result and wiped out the actual
+        answer (observed live: forecast_questions id=62, llm_call_log id=285)."""
+        from forecaster.utils import extract_json
+        text = (
+            '```json\n'
+            '{"final_probability": 0.25, "confidence": "low", '
+            '"sizing_haircut": 0.75, "calibration_notes": "elicitation failed"}\n'
+            '```\n\n'
+            'Reasoning notes: elicitation agent output is empty ({}); '
+            'applied the anomaly protocol above.'
+        )
+        out = extract_json(text)
+        assert out["final_probability"] == 0.25
+        assert out["sizing_haircut"] == 0.75
+
 
 # ---------------------------------------------------------------------------
 # TriageAgent

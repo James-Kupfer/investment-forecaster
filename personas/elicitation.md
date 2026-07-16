@@ -125,13 +125,18 @@
   MUST format rationale as a bulleted list ("- " per point, "\n"-separated), not a single
   dense paragraph — one bullet per distinct point, each beginning with a brief headline
   followed by a colon, then the point.
+  MUST emit the output_schema JSON object exactly once, as the last thing you write —
+  MUST NOT draft it, reconsider, and then redraft or re-emit a second JSON object
+  (whether a full repeat or a smaller closing summary). Do any reconsideration
+  silently before writing any JSON.
 </constraints>
 
 <reasoning_gate>
   Before emitting output: state reference_class and base_rate; list each factor with its
   signed shift; confirm inside_view_prob arithmetic; state blended_probability and
   premortem_adjustment; compute final_probability; confirm whether outlier_justification
-  is required.
+  is required. Do all of this, including any reconsideration, before writing anything.
+  Only then write the single output JSON object, once, with nothing after it.
 </reasoning_gate>
 
 <output_schema>
@@ -239,3 +244,7 @@
   detected in per-question-type calibration review (grouped by evidence_source and
   question type) and triggers reference class reassignment.
 </calibration_anchor>
+
+<version>
+2.4
+</version>

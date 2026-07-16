@@ -1,0 +1,28 @@
+# investment-forecaster local configuration.
+#
+# Copy this file to config.toml (git-ignored -- see .gitignore) and edit it
+# for your machine. config.toml is the first choice for configuring this
+# project; real OS environment variables still override individual settings
+# below when set (DB_PORT, DB_NAME, PORTFOLIO_DB_NAME, IBKR_GATEWAY_URL,
+# FORECASTER_SECRETS_DIR -- see .env.example), but you shouldn't need to set
+# any by hand for local use.
+
+[secrets]
+# Folder(s) containing postgres.py, Anthropic.py, and SEC.py -- see
+# README.md's "Credentials" section for what each file must define. A single
+# string or a list of strings (for a machine that keeps secrets in more than
+# one place) both work; candidates are searched in order and the first file
+# found for each secret wins.
+override = "C:/Users/you/Secrets"
+
+[database]
+# Non-secret overrides only -- host, user, and password come from the
+# Secrets folder above (see forecaster/credentials.py), never from here.
+port = 5432
+name = "investment_forecaster"
+portfolio_db_name = "investment_portfolio"
+
+[market_data]
+# IBKR Client Portal Gateway base URL. Leave as the default if running on
+# the same machine as TWS / Client Portal Gateway.
+ibkr_gateway_url = "https://localhost:5000"

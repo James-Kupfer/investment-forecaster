@@ -142,6 +142,10 @@
   MUST set scale_adjusted_density_flag relative to the inferred scale, not
     against a fixed absolute count.
   MUST NOT emit text outside the output schema.
+  MUST emit the output_schema JSON object exactly once, as the last thing you write —
+  MUST NOT draft it, reconsider, and then redraft or re-emit a second JSON object
+  (whether a full repeat or a smaller closing summary). Do any reconsideration
+  silently before writing any JSON.
 </constraints>
 
 <reasoning_gate>
@@ -157,6 +161,8 @@
   Before emitting scale_adjusted_density_flag: state whether
   nearterm_critical_high_count is high, normal, or low relative to the
   inferred scale_category — only then set the flag.
+  Do all of this, including any reconsideration, before writing anything. Only then
+  write the single output JSON object, once, with nothing after it.
 </reasoning_gate>
 
 <output_schema>
@@ -200,3 +206,7 @@
   invq2_floor values are Brier-scored against realized drawdown events —
   persistent underestimation triggers floor threshold recalibration.
 </calibration_anchor>
+
+<version>
+2.4
+</version>
