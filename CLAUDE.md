@@ -71,6 +71,19 @@ LLM Superforecaster — applies Tetlock superforecaster discipline to investment
 - Branch: `develop` for integration, `feature/` or `claude/` for development.
 - CI: GitHub Actions self-hosted runner on `JAMES-DESKTOP` (runner: `desktop-forecaster`), shell: `cmd` — runs unit tests only (`--ignore=tests/test_db.py`).
 - Mock Anthropic API in unit tests (`unittest.mock.patch`) — `test_db.py` runs against live Postgres, run manually or via scheduled workflow.
+- **If the repo's visibility is ever flipped to public — even briefly — GitHub permanently
+  revokes the self-hosted runner's ability to run workflows for this repo as a security measure.**
+  Flipping it back to private does not restore access. Every subsequent CI run then fails
+  instantly with conclusion `startup_failure` and zero jobs created (no logs, no billed time) —
+  this is not a workflow YAML bug or an offline runner (an offline-but-still-registered runner
+  leaves the run `queued`, it doesn't fail outright). This exact sequence happened on `develop`
+  around the "Getting ready for public"/"public-repo safety" commits (2026-07-16): the runner
+  (`desktop-forecaster`, `runner_id 2`, group `Default`) ran a job successfully minutes earlier,
+  then every push afterward hit `startup_failure`. Fix: on `JAMES-DESKTOP`, re-run
+  `setup/install-runner.ps1` (its `config.cmd ... --replace` handles re-registering under the same
+  name) with a fresh token from `.../settings/actions/runners/new`, and confirm the runner shows
+  Idle at `.../settings/actions/runners`. Don't chase this as a code problem — check runner
+  registration status first whenever CI goes from working to `startup_failure` on every run.
 
 ## Environment
 No `.env` file is used for secrets — see `README.md`'s "Configuration"/"Credentials" sections for
