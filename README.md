@@ -228,4 +228,6 @@ See [`CLAUDE.md`](CLAUDE.md) for the conventions this codebase follows (agent st
 
 ## License
 
-Not yet licensed — all rights reserved by default until a license is added. Ask before reusing.
+All rights reserved — see [LICENSE](LICENSE). This repository is public for
+visibility and demonstration purposes only; no rights are granted to use,
+copy, modify, or redistribute its contents.
