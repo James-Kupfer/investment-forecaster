@@ -63,11 +63,7 @@ investment-forecaster/
 │   ├── test_agents.py                  # Mocked-API unit tests for every agent + aggregation formulas
 │   ├── test_pipeline.py                # ForecastPipeline._is_equity_like unit tests
 │   ├── test_edgar_client.py            # Mocked SEC EDGAR client unit tests
-│   ├── test_image_extractor.py         # Tests Technical Analysis/image_extractor.py
 │   └── test_db.py                      # Live-DB integration tests (excluded from CI)
-├── Technical Analysis/
-│   ├── image_extractor.py              # Standalone PDF->PNG extractor (PyMuPDF), unrelated to the pipeline
-│   └── Bulkowski_Encyclopedia_of_Chart_Patterns.pdf
 ├── run_pipeline.bat                    # Double-click wrapper for scripts/run_pipeline.ps1
 ├── .github/workflows/ci.yml            # Self-hosted runner CI
 ├── README.md                            # Start here
@@ -502,8 +498,7 @@ Never writes `mechanical_score` or `adjusted_score` — resolution activity for 
 | `test_agents.py` | Mocked-API unit tests: `extract_json`, `TriageAgent`, `QuestionDefinitionAgent` (incl. the 7-question cap), `MacroQAgent._persist_tree`, `RiskJudgeAgent`, `MomentumAgent`, `TechnicalJudgeAgent`, `ReviewAgent`, `PrimarySourceAgent` (data-source fallback priority), and the bulk of `AggregationAgent`'s formulas (mechanical score, `clamp_adjustment`, `derive_recommendation`, both adjustments) |
 | `test_pipeline.py` | `ForecastPipeline._is_equity_like` classification only — full `pipeline.run()` is exercised manually/live, not unit-tested |
 | `test_edgar_client.py` | Mocked SEC network calls: CIK lookup/caching, quarterly-financials extraction, filing-form filtering, HTML-stripped excerpts, Form 4 parsing |
-| `test_image_extractor.py` | Loads `Technical Analysis/image_extractor.py` by file path (not a package); asserts it extracts at least one image from the reference PDF |
-| `test_db.py` | Live-DB integration test against both `investment_forecaster` and `investment_portfolio` — excluded from CI |
+| `test_db.py` | Live-DB integration tests against both `investment_forecaster` and `investment_portfolio` — excluded from CI. Also covers `ForecastPipeline._get_prior_adjusted_score`, which lives here rather than `test_pipeline.py` because the behaviour under test is `ORDER BY` resolution that only a real Postgres can evaluate; those tests run inside a rolled-back transaction and never write to the real `forecasts` table |
 
 Run: `python -m pytest --ignore=tests/test_db.py`
 
