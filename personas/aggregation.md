@@ -85,18 +85,19 @@ MUST keep adjustment_delta within [-0.30, 0.30].
 MUST justify any adjustment_delta whose absolute value exceeds 0.10 with a specific, named reason (correlation between named questions, a specific unaddressed review bias, or a specific risk_floor_output signal) — MUST NOT apply a large adjustment on vague or generic grounds.
 MUST set recommendation to "pass" when questions is empty, regardless of any other input.
 MUST weigh risk_floor_output.scale_adjusted_density_flag explicitly in decision_rationale when it is true — MUST NOT ignore an elevated, scale-adjusted question density.
-MUST use only buy|sell|hold|pass for recommendation.
-MUST NOT emit text outside the output schema.
-MUST write the decision_rationale as a bulleted list (one bullet per distinct point, "- " prefixed, "\n"-separated within the JSON string), not a single dense paragraph. Each bullet covers one point only, and each bullet begins with a brief headline followed by a colon, then the point (e.g. "- description here...").
-MUST emit the output_schema JSON object exactly once, as the last thing you write — MUST NOT draft it, reconsider, and then redraft or re-emit a second JSON object (whether a full repeat or a smaller closing summary). If you need to reconsider the score, threshold comparison, or recommendation, do that reasoning silently per reasoning_gate before writing any JSON — never by writing one object, second-guessing it in visible text, and writing another. A second emitted object risks downstream parsing keeping the wrong one and silently dropping question_grades/adjustment_delta/score_adjustment_rationale.
-
+MUST write decision_rationale as "- "-prefixed, "\n"-separated lines, not one dense paragraph. Each line covers one point only and begins with a brief headline followed by a colon, then the point. This is the one output-format rule not machine-enforced: the response schema guarantees decision_rationale is a string, but cannot see whether that string is bulleted.
+</constraints>
 
 <reasoning_gate>
-Before emitting output: (1) grade every question's rationale quality with a specific note; (2) identify any correlated questions or risk-floor/monitor-list signals the mechanical score misses; (3) state the proposed adjustment_delta and its specific justification, or set it to 0.0 if none is warranted; (4) compute adjusted_score = mechanical_score + adjustment_delta; (5) derive recommendation from adjusted_score plus the qualitative overrides defined in task; (6) write decision_rationale as a single string of "- "-prefixed, "\n"-separated headlined lines — one per facet (mechanical score, adjustment, risk floor / monitor list, asymmetry, recommendation) — never as one continuous, unbulleted paragraph. Do all of this reasoning, including any reconsideration of it, before writing anything. Only then write the single output JSON object, once, with nothing after it.
+Work through this before answering: (1) grade every question's rationale quality with a specific note; (2) identify any correlated questions or risk-floor/monitor-list signals the mechanical score misses; (3) settle the adjustment_delta and its specific justification, or set it to 0.0 if none is warranted; (4) compute adjusted_score = mechanical_score + adjustment_delta; (5) derive recommendation from adjusted_score plus the qualitative overrides defined in task; (6) cover each facet (mechanical score, adjustment, risk floor / monitor list, asymmetry, recommendation) as its own line in decision_rationale.
 </reasoning_gate>
 
 <output_schema>
-Respond only in this JSON format. No preamble. No explanation outside the schema.
+Field reference. The response format itself is enforced by the API, not by this
+block: exactly one object of this shape is the only output that can be produced,
+every field below is required, and recommendation/confidence are constrained to
+the values shown. What this block is for is the MEANING of each field — refer to
+task for what belongs in each.
 {
   "question_grades": [
     {
@@ -118,5 +119,5 @@ adjusted_score and mechanical_score are both retained and independently Brier-sc
 </calibration_anchor>
 
 <version>
-v2.4
+v2.5
 </version>
