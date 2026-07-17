@@ -5,7 +5,7 @@ __pycache__/
 
 # C extensions
 *.so
-
+*.pdf
 # Distribution / packaging
 .Python
 build/
@@ -220,3 +220,4 @@ __marimo__/
 # investment-forecaster local config (see config.example.toml for the template)
 config.toml
 CLAUDE.md
+/Technical Analysis
