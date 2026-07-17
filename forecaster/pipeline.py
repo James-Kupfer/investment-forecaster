@@ -251,13 +251,26 @@ class ForecastPipeline:
         return question
 
     def _get_prior_adjusted_score(self, symbol: str) -> Optional[float]:
+        """The created_at tiebreak is load-bearing, not cosmetic. forecast_date is
+        a DATE stamped date.today() on every run, so every same-day re-run (which
+        is exactly what --force produces) ties on it. Ordering by forecast_date
+        alone left the winner among tied rows unspecified, and Postgres resolved
+        it by physical heap order — which, since rows are appended in insertion
+        order, reliably returned the OLDEST run of the day rather than the newest.
+        That silently gated triage on a superseded score (observed live: NOVT read
+        id=27 adjusted_score=-0.0474 and rejected, while the current row id=28 held
+        +0.3580 and should have proceeded). The old behaviour wasn't even stably
+        wrong: heap order shifts on UPDATE, VACUUM FULL/CLUSTER, or the plan
+        flipping to an index scan, so it could silently start returning a
+        different tied row with no code change.
+        """
         with db_cursor() as cur:
             cur.execute(
                 """
                 SELECT adjusted_score
                 FROM forecasts
                 WHERE symbol = %s AND adjusted_score IS NOT NULL
-                ORDER BY forecast_date DESC
+                ORDER BY forecast_date DESC, created_at DESC
                 LIMIT 1
                 """,
                 (symbol,),
