@@ -1,11 +1,67 @@
 import json
+import logging
 from typing import Optional
 
 from forecaster.agents.base import BaseAgent, AgentResult
 from forecaster.db import update_forecast_columns, update_forecast_question_columns
-from forecaster.utils import extract_json
+
+logger = logging.getLogger(__name__)
 
 _SEVERITY_WEIGHT = {"critical": 4, "high": 3}
+
+_VALID_RECOMMENDATIONS = ("buy", "sell", "hold", "pass")
+
+# Constrains the model at decode time to exactly this shape. This is the whole
+# reason the agent can parse strictly instead of salvaging: it is structurally
+# impossible for the model to fragment its answer across several JSON objects,
+# narrate around it in prose, omit a required field, or invent a recommendation
+# outside the enum. Observed live on forecast 30 (Haiku, prompt v2.4): the model
+# closed a partial object early, wrote "**Recommendation: HOLD**" as markdown,
+# then appended two more single-key objects — extract_json kept the first (most
+# keys) and silently discarded decision_rationale, confidence, AND the
+# recommendation, which had never been JSON at all.
+#
+# Note what is deliberately NOT expressed here: adjustment_delta's [-0.30, 0.30]
+# bound. Structured outputs do not support numeric constraints (minimum/maximum),
+# and that bound is already enforced deterministically by clamp_adjustment — the
+# right place for it, since a malformed value must become 0.0 rather than error.
+# additionalProperties/required are mandatory on every object in the schema.
+AGGREGATION_SCHEMA: dict = {
+    "type": "object",
+    "properties": {
+        "question_grades": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "question_index": {"type": "integer"},
+                    "rationale_quality_score": {"type": "number"},
+                    "rationale_quality_notes": {"type": "string"},
+                },
+                "required": [
+                    "question_index",
+                    "rationale_quality_score",
+                    "rationale_quality_notes",
+                ],
+                "additionalProperties": False,
+            },
+        },
+        "adjustment_delta": {"type": "number"},
+        "score_adjustment_rationale": {"type": "string"},
+        "recommendation": {"type": "string", "enum": list(_VALID_RECOMMENDATIONS)},
+        "decision_rationale": {"type": "string"},
+        "confidence": {"type": "string", "enum": ["high", "medium", "low"]},
+    },
+    "required": [
+        "question_grades",
+        "adjustment_delta",
+        "score_adjustment_rationale",
+        "recommendation",
+        "decision_rationale",
+        "confidence",
+    ],
+    "additionalProperties": False,
+}
 
 # Bounded adjustment: the LLM may not move the mechanical score by more than this
 # in either direction — decision 2 in the plan: "bounded", never silently
@@ -226,15 +282,47 @@ class AggregationAgent(BaseAgent):
         # sometimes draft a JSON object, self-correct with narrative text, then
         # emit a second complete object -- effectively doubling total output for
         # a single call. Sized well above that worst case for a full 7-question set.
-        result = self.call(messages, system=system_prompt, max_tokens=32000)
+        result = self.call(
+            messages,
+            system=system_prompt,
+            max_tokens=32000,
+            output_config={"format": {"type": "json_schema", "schema": AGGREGATION_SCHEMA}},
+        )
         self.log_call(result, forecast_id=forecast_id, macro_state_id=macro_state_id)
 
         delta = self.clamp_adjustment(result.output.get("adjustment_delta"))
         adjusted_score = max(-1.0, min(1.0, mechanical_score + delta))
-        recommendation = self.derive_recommendation(
-            questions, adjusted_score, result.output.get("recommendation"),
-            buy_threshold=buy_threshold, sell_threshold=sell_threshold,
-        )
+
+        llm_recommendation = result.output.get("recommendation")
+        if questions and (result.error or llm_recommendation not in _VALID_RECOMMENDATIONS):
+            # Never fabricate a recommendation the model did not make. This path
+            # used to fall through to derive_recommendation's mechanical
+            # threshold mapping, which stored the fabricated call as though the
+            # model had issued it: on forecast 30 (FNV) that wrote recommendation
+            # ='buy' off a 0.357-vs-0.350 margin while the model's own — lost —
+            # answer was HOLD, explicitly reasoning that the margin was "within
+            # measurement error" and "does not justify a conviction buy". Nothing
+            # in the row flagged it. A NULL recommendation already means
+            # "not determined" in this schema (that's how _insert_partial_forecast
+            # leaves it), so leaving it NULL is honest and needs no new column;
+            # the mechanical columns below are still written because they are
+            # computed in code and remain valid regardless of the LLM's failure.
+            # With AGGREGATION_SCHEMA enforced this should be unreachable — it is
+            # an assertion about the schema, not a fallback for the model.
+            logger.error(
+                "aggregation produced no usable recommendation for forecast_id=%s "
+                "(error=%r, recommendation=%r) — leaving recommendation NULL rather "
+                "than substituting a mechanical threshold read. adjusted_score=%.4f "
+                "vs buy_threshold=%.4f/sell_threshold=%.4f.",
+                forecast_id, result.error, llm_recommendation,
+                adjusted_score, buy_threshold, sell_threshold,
+            )
+            recommendation = None
+        else:
+            recommendation = self.derive_recommendation(
+                questions, adjusted_score, llm_recommendation,
+                buy_threshold=buy_threshold, sell_threshold=sell_threshold,
+            )
 
         for grade in (result.output.get("question_grades") or []):
             idx = grade.get("question_index")
@@ -271,5 +359,13 @@ class AggregationAgent(BaseAgent):
         return result
 
     def _parse_response(self, response) -> dict:
+        """Strict parse, deliberately NOT extract_json. AGGREGATION_SCHEMA
+        constrains the decoder, so the response text is a single valid JSON
+        object matching it or the call did not succeed — there is no third
+        outcome worth salvaging. extract_json's heuristics exist to guess intent
+        from a malformed response and return whatever they can; running them here
+        would re-introduce exactly the silent partial-recovery this agent is
+        moving away from. A parse failure now raises, BaseAgent.call captures it
+        into AgentResult.error, and log_call persists it — loud, not silent."""
         text = self.extract_text_block(response) or ""
-        return extract_json(text)
+        return json.loads(text)
