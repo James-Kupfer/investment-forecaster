@@ -10,6 +10,23 @@ Set-Location $RepoRoot
 # (em-dashes, smart quotes) get silently corrupted before being stored.
 $env:PYTHONUTF8 = "1"
 
+# 0. Sync prompt_registry from personas/*.md -- editing a persona file and
+# merging it does not change agent behavior on its own (BaseAgent reads the
+# active prompt from the DB, not the file), so every run self-heals any
+# persona edit that was merged but never seeded via update_prompt.py.
+Write-Host "Syncing prompt_registry from personas/*.md ..."
+python scripts\sync_prompts.py
+if ($LASTEXITCODE -ne 0) {
+    Write-Host ""
+    Write-Host "Prompt sync reported errors (exit code $LASTEXITCODE)."
+    $continueChoice = Read-Host "Continue with the forecast pipeline anyway? (1 = Yes, 2 = No)"
+    if ($continueChoice -ne "1") {
+        Write-Host "Aborting."
+        exit 1
+    }
+}
+Write-Host ""
+
 # 1. Refresh data?
 $refreshChoice = Read-Host "Refresh DB from Excel before forecasting? (1 = Yes, 2 = No)"
 

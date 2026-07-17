@@ -20,15 +20,32 @@
   symbol:                         VARCHAR        — position identifier.
   instrument_type:                VARCHAR        — free-text instrument type (e.g. "Stock", "ETF",
                                                    "FX", "Future", "Commodity", "Bond"), when known.
-                                                   An ETF, FX, future, commodity, or rate/index
-                                                   product has no issuer earnings of its own — its
+                                                   In this portfolio's data, "Commodity" is often a
+                                                   sector/theme tag applied to real single-name
+                                                   operating companies in commodity-producing
+                                                   industries (e.g. LIN, CVX, EQT, FNV, NTR, MP) as
+                                                   well as to genuine commodity-tracking ETFs/funds
+                                                   (e.g. DBC, GDX, XME, GLD) — it is NOT a reliable
+                                                   signal on its own that this position has no issuer
+                                                   earnings. Gate on data_source, not on this label:
+                                                   if data_source is "edgar" or "financials_text",
+                                                   real reported financials exist for this symbol, so
+                                                   assess it as an operating company normally per the
+                                                   task below regardless of what instrument_type
+                                                   says — note in rationale if instrument_type looks
+                                                   like a sector tag rather than a literal instrument
+                                                   type. Only when instrument_type indicates
+                                                   ETF/FX/future/commodity/rate-index AND
+                                                   data_source="training_knowledge" (no XBRL data, no
+                                                   financials text found) should you treat this as
+                                                   having no issuer earnings of its own — its
                                                    sponsor/administrator does not report EPS or FCF
-                                                   for the fund. In that case set signal="neutral",
+                                                   for a fund. In that case set signal="neutral",
                                                    every dimension field to its neutral/unknown
-                                                   value, and state in rationale that this
-                                                   instrument has no reported earnings to assess —
-                                                   MUST NOT substitute the underlying index's or a
-                                                   related company's earnings.
+                                                   value, and state in rationale that this instrument
+                                                   has no reported earnings to assess — MUST NOT
+                                                   substitute the underlying index's or a related
+                                                   company's earnings.
   data_source:                    VARCHAR        — "edgar" (structured EDGAR data present),
                                                    "financials_text" (EDGAR unavailable, using the
                                                    position's free-text financials field), or
@@ -143,9 +160,13 @@
   substitute a training-knowledge guess of consensus estimates or guidance to manufacture a signal.
   MUST set revenue_quality to "unknown" when organic_revenue_pct is not supplied — MUST NOT guess
   from training knowledge of the company's business mix.
-  MUST set signal="neutral" and every dimension to its neutral/unknown value when instrument_type
-  (or the thesis/financials text) indicates an ETF, FX, future, commodity, or rate/index product —
-  MUST NOT report an earnings assessment for the underlying index, benchmark, or a related company.
+  MUST set signal="neutral" and every dimension to its neutral/unknown value ONLY when
+  instrument_type (or the thesis/financials text) indicates an ETF, FX, future, commodity, or
+  rate/index product AND data_source="training_knowledge" — MUST NOT trigger this path off
+  instrument_type="Commodity" alone when data_source is "edgar" or "financials_text" (real reported
+  financials found means a real operating-company issuer exists, e.g. a commodity producer like
+  LIN, not a fund/derivative). MUST NOT report an earnings assessment for the underlying index,
+  benchmark, or a related company when the neutral path does apply.
   MUST NOT alter output field names.
   MUST format rationale as a bulleted list ('- ' per line, '\n'-separated), not a single
   dense paragraph — one bullet per distinct point, each beginning with a brief headline
@@ -291,6 +312,43 @@
       }
     </output>
   </example>
+
+  <example>
+    <description>
+      instrument_type="Commodity" sector tag on a real operating company, NOT a fund. Demonstrates
+      gating on data_source rather than the label — real EDGAR XBRL data means this is assessed as
+      a standard equity issuer, not routed down the neutral/no-earnings path.
+    </description>
+
+    <inputs>
+      symbol: "LIN" (Linde plc, industrial gases), instrument_type: "Commodity"
+      data_source: "edgar" (real quarterly EPS/net income/OCF/capex returned from XBRL)
+    </inputs>
+
+    <reasoning>
+      instrument_type="Commodity" here is a sector/theme tag for an industrial-gases operating
+      company, not a fund/derivative. data_source="edgar" confirms real reported financials exist
+      for this issuer, so the neutral/no-earnings path does NOT apply — proceed with the normal
+      accrual_ratio / beat_miss / guidance / fcf_yield / revenue_quality computation against the
+      supplied quarterly series exactly as in the ZETA example above.
+    </reasoning>
+
+    <output>
+      {
+        "signal":               "[computed from the dimension score sum against LIN's actual supplied quarters, not hardcoded neutral]",
+        "fcf_vs_gaap_quality":  "[computed from accrual_ratio, per task]",
+        "beat_miss_trend":      "EPS trajectory description; no consensus estimate available to assess beat/miss",
+        "guidance_credibility": "neutral",
+        "fcf_yield_assessment": "[computed if fcf_yield_current and fcf_yield_historical_avg are both present]",
+        "revenue_quality":      "[organic|acquired|mixed|unknown, per organic_revenue_pct availability]",
+        "earnings_trend":       "[2-3 sentences on LIN's actual EPS trajectory from the supplied XBRL data]",
+        "fcf_assessment":       "[2-3 sentences on LIN's actual FCF trend/accrual quality/yield]",
+        "confidence":           "[per the usual quarters_available / accrual-data-availability constraints]",
+        "rationale":            "- Label check: instrument_type='Commodity' is a sector tag for an industrial-gases operating company (Linde plc), not a fund/derivative — data_source=edgar confirms a real issuer with real reported financials, so this is assessed as a standard equity position.
+- [then the normal accrual/beat-miss/guidance/yield/revenue summary, as in the ZETA example]"
+      }
+    </output>
+  </example>
 </examples>
 
 <calibration_anchor>
@@ -299,5 +357,5 @@
 </calibration_anchor>
 
 <version>
-2.4
+2.5
 </version>
