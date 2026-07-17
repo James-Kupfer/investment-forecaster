@@ -9,16 +9,14 @@ import forecaster.credentials  # noqa: F401 (loads ANTHROPIC_API_KEY into os.env
 from forecaster.db import db_cursor
 
 # (input_per_mtok, output_per_mtok, cached_input_per_mtok)
-# NOTE: claude-sonnet-5 rate below is carried over from the old claude-sonnet-4-6
-# entry as a placeholder — verify against Anthropic's current pricing page.
+# Rates are Anthropic's current published per-MTok prices; cached input is the
+# standard ~10%-of-input read rate.
 _PRICING: dict[str, tuple[float, float, float]] = {
     'claude-sonnet-5':            (3.00, 15.00, 0.30),
     'claude-haiku-4-5-20251001':  (1.00,  5.00, 0.10),
-    # Opus historically prices at ~5x Sonnet on both input and output; cached
-    # input follows the same 10%-of-input pattern used for the other two rows.
-    # Not yet confirmed against Anthropic's current published rate for this
-    # specific model — verify before treating logged costs as exact.
-    'claude-opus-4-8':            (15.00, 75.00, 1.50),
+    # Opus 4.8: $5 in / $25 out per MTok (was previously entered as $15/$75 —
+    # ~3x too high, which overstated every logged Opus call cost).
+    'claude-opus-4-8':            (5.00, 25.00, 0.50),
 }
 
 
