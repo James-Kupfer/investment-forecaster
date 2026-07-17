@@ -4,27 +4,28 @@ differs from what is currently active in the DB.
 
 Editing a persona .md file and merging it to develop does NOT change agent
 behavior on its own -- BaseAgent.get_active_prompt() reads prompt_text from
-prompt_registry, not from the file. This script closes that gap by diffing
-each personas/<agent_id>.md against the DB's active row for that agent_id
-and reseeding (via update_prompt.update_prompt(), the same deactivate-old/
-insert-new path update_prompt.py uses) whenever they differ.
+prompt_registry, not from the file. This script closes that gap by hashing
+each personas/<agent_id>.md and comparing it to the DB's active version for
+that agent_id, reseeding (via update_prompt.update_prompt(), the same
+deactivate-old/insert-new path update_prompt.py uses) whenever they differ.
 
-Diffs on actual prompt_text content, not just the in-file version marker
-('## Version: X.Y' or '<version>X.Y</version>') -- a persona edited without
-remembering to bump its version marker still gets picked up; the mismatch
-is logged as a warning rather than silently skipped.
+Validates changes by content hash, not by a human-maintained version marker.
+A hand-written '## Version: X.Y' comment can go stale -- someone edits the
+prompt body and forgets to bump it, and a marker-diff sync silently skips
+the change. A hash of prompt_text can't go stale the same way: it changes
+if and only if the content changes, so drift is always caught.
 
 Idempotent and safe to run on every pipeline invocation: agents whose file
-content already matches the active DB row are no-ops. Versions are tracked
-independently per agent_id (e.g. aggregation.md may be v2.5 while others
-sit at v2.4) -- this is normal, not a sync failure.
+content hash already matches the active DB row are no-ops. Hash-derived
+versions are tracked independently per agent_id, same as the old scheme --
+there's no requirement that every agent share one version.
 
 Usage:
     python scripts/sync_prompts.py
 """
 from __future__ import annotations
 
-import re
+import hashlib
 import sys
 from pathlib import Path
 
@@ -36,31 +37,19 @@ from update_prompt import update_prompt
 
 AGENTS_DIR = Path(__file__).resolve().parent.parent / "personas"
 
-_TOP_VERSION_RE = re.compile(r"^## Version:\s*(\S+)\s*$", re.MULTILINE)
-_BOTTOM_VERSION_RE = re.compile(r"<version>\s*(\S+)\s*</version>")
-_NUMERIC_VERSION_RE = re.compile(r"^v?(\d+)\.(\d+)$", re.IGNORECASE)
+# prompt_registry.prompt_version is VARCHAR(20) -- "h-" + 12 hex chars = 14,
+# comfortably under the limit while still being collision-safe in practice.
+_HASH_LEN = 12
 
 
-def _extract_version(text: str) -> str | None:
-    """Parse a persona file's version marker. Tolerant of the two
-    conventions in use ('## Version: X.Y' at the top, '<version>X.Y</version>'
-    at the bottom) and of an optional leading 'v' (aggregation.md uses
-    'v2.5'; every other file uses a bare number)."""
-    m = _TOP_VERSION_RE.search(text) or _BOTTOM_VERSION_RE.search(text)
-    if not m:
-        return None
-    vm = _NUMERIC_VERSION_RE.match(m.group(1))
-    return f"{vm.group(1)}.{vm.group(2)}" if vm else m.group(1).lstrip("vV")
-
-
-def _next_version(current: str | None) -> str:
-    """Bump the minor component of a vX.Y DB version string. Falls back to
-    v1.1 if the active version isn't in that shape (e.g. no prior row)."""
-    if current:
-        m = _NUMERIC_VERSION_RE.match(current)
-        if m:
-            return f"v{m.group(1)}.{int(m.group(2)) + 1}"
-    return "v1.1"
+def _content_version(text: str) -> str:
+    """Deterministic version label derived from prompt_text content: 'h-'
+    plus a truncated SHA-256 hex digest. Identical content always produces
+    the same label; any content change produces a different one -- so
+    comparing labels is equivalent to comparing content, without needing to
+    fetch/compare the full prompt_text on every sync."""
+    digest = hashlib.sha256(text.encode("utf-8")).hexdigest()
+    return f"h-{digest[:_HASH_LEN]}"
 
 
 def sync() -> int:
@@ -68,35 +57,19 @@ def sync() -> int:
     for md_path in sorted(AGENTS_DIR.glob("*.md")):
         agent_id = md_path.stem
         file_text = md_path.read_text(encoding="utf-8").strip()
+        new_version = _content_version(file_text)
 
         with db_cursor() as cur:
             cur.execute(
-                "SELECT prompt_version, prompt_text FROM prompt_registry "
+                "SELECT prompt_version FROM prompt_registry "
                 "WHERE agent_id = %s AND is_active = TRUE",
                 (agent_id,),
             )
             row = cur.fetchone()
-        db_version, db_text = row if row else (None, None)
+        db_version = row[0] if row else None
 
-        if db_text is not None and db_text.strip() == file_text:
-            continue  # content identical -- nothing to reseed
-
-        file_version = _extract_version(file_text)
-        candidate = f"v{file_version}" if file_version else None
-        if candidate and candidate != db_version:
-            new_version = candidate
-        else:
-            # Either no parseable marker, or the marker wasn't bumped despite
-            # a real content change -- never reuse a version label for two
-            # different prompt_text bodies.
-            if candidate:
-                print(
-                    f"  WARNING: {agent_id} content changed but its version "
-                    f"marker still reads {candidate} (same as the active DB "
-                    f"version) -- auto-bumping instead of reusing a stale "
-                    f"label. Update the marker in personas/{agent_id}.md."
-                )
-            new_version = _next_version(db_version)
+        if db_version == new_version:
+            continue  # content hash unchanged -- nothing to reseed
 
         print(f"  {agent_id}: {db_version or '(none)'} -> {new_version}")
         update_prompt(agent_id, new_version, file_text)
