@@ -41,6 +41,13 @@ LLM Superforecaster — applies Tetlock superforecaster discipline to investment
 - Prompts live in the DB, not in code. Source of truth for seeding: `personas/<agent>.md` files.
 - Update via `python scripts/update_prompt.py --agent <agent_id> --version <vX.Y>`.
 - Version format: `v1.0`, `v1.1`, etc.; `authored_by_model` records which model wrote it.
+- `scripts/sync_prompts.py` (run automatically by `run_pipeline.ps1` before every pipeline run)
+  reseeds any agent whose `personas/<agent>.md` content no longer matches its active DB row —
+  through the same `update_prompt.update_prompt()` path, never direct SQL. It validates by content
+  hash rather than a version number: the version it writes is `h-<sha256 prefix>`, derived from
+  `prompt_text` itself, so a persona edit can never be silently skipped for lacking a manual version
+  bump. `h-...` rows and hand-authored `vX.Y` rows from manual `update_prompt.py` runs coexist in
+  the same table — don't assume every `prompt_version` follows the `vX.Y` shape.
 
 ## Migrations
 - Files: `migrations/NNN_description.sql` (zero-padded three-digit prefix).
