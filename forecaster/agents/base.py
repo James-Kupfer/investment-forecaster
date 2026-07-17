@@ -88,7 +88,17 @@ class BaseAgent(ABC):
         messages: list,
         system: Optional[str] = None,
         max_tokens: int = 1024,
+        output_config: Optional[dict] = None,
     ) -> AgentResult:
+        """output_config takes the Anthropic structured-outputs shape, e.g.
+        {'format': {'type': 'json_schema', 'schema': {...}}}. When set, the model
+        is constrained at decode time to emit exactly one schema-conformant JSON
+        object — it cannot fragment across several objects, wrap the JSON in
+        prose, or omit a required field, regardless of model tier. That makes the
+        response shape a property of the request rather than of the model's
+        cooperation, so the agent's _parse_response can parse strictly instead of
+        salvaging (see AggregationAgent). Left None, the call behaves exactly as
+        before for every agent that hasn't been given a schema yet."""
         prompt_version_id, _ = self.get_active_prompt()
         start = time.monotonic()
         response = None
@@ -99,6 +109,8 @@ class BaseAgent(ABC):
             params: dict = {'model': self.model, 'max_tokens': max_tokens, 'messages': messages}
             if system:
                 params['system'] = system
+            if output_config:
+                params['output_config'] = output_config
             # Streaming, not .create() -- the SDK refuses non-streaming requests
             # it estimates could exceed 10 minutes (observed live once max_tokens
             # was raised on Opus: "Streaming is required for operations that may
@@ -113,6 +125,30 @@ class BaseAgent(ABC):
         except Exception as exc:
             error = str(exc)
             output = {}
+
+        # A truncated or refused call is NOT an exception: it returns HTTP 200
+        # with a complete-looking Message, and the anomaly is only visible on
+        # stop_reason. Nothing in this codebase inspected stop_reason before, so
+        # every truncation in its history was written to llm_call_log with
+        # error=None — recorded as a success (CLAUDE.md's token-budget notes
+        # describe two agents caught truncating this way, both found by hand, not
+        # by the log). Detection only: the parsed output is still returned so
+        # partial data stays usable and no agent's control flow changes — the
+        # anomaly just stops being invisible. stop_reason takes precedence over a
+        # parse error because it is the root cause of one.
+        stop_reason = getattr(response, 'stop_reason', None) if response else None
+        stop_error = None
+        if stop_reason == 'max_tokens':
+            stop_error = (
+                f'truncated: stop_reason=max_tokens at max_tokens={max_tokens} — output is '
+                f'incomplete and any fields after the cutoff were lost'
+            )
+        elif stop_reason == 'refusal':
+            stop_error = (
+                'refused: stop_reason=refusal — no conformant output was produced'
+            )
+        if stop_error:
+            error = f'{stop_error} | parse error: {error}' if error else stop_error
 
         duration_ms = int((time.monotonic() - start) * 1000)
         tokens_in = response.usage.input_tokens if response else 0
