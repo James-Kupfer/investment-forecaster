@@ -57,7 +57,11 @@ if ($refreshChoice -eq "1") {
     Write-Host ""
 }
 
-# 2. List stock(s):
+# 2. Force?
+$forceChoice = Read-Host "Force? Bypass the triage gate (1 = Yes, 2 = No)"
+$force = $forceChoice -eq "1"
+
+# 3. List stock(s):
 $stockInput = Read-Host "List stock(s) (symbol, comma-separated symbols, or `"pipeline`" to run every active position)"
 if ([string]::IsNullOrWhiteSpace($stockInput)) {
     Write-Host "No stock entered -- exiting."
@@ -69,10 +73,6 @@ $runAll = $stockInput.ToLower() -eq "pipeline"
 $symbolList = $stockInput.Split(",") | ForEach-Object { $_.Trim().ToUpper() } | Where-Object { $_ -ne "" }
 $symbolsArg = $symbolList -join ","
 
-# 3. Force?
-$forceChoice = Read-Host "Force? Bypass the triage gate (1 = Yes, 2 = No)"
-$force = $forceChoice -eq "1"
-
 if ($runAll -and $force) {
     Write-Host "Force is not supported for a full pipeline run (--force requires a single symbol) -- ignoring."
     $force = $false
@@ -83,6 +83,29 @@ Write-Host ""
 if ($runAll) {
     Write-Host "Running pipeline for all active positions ..."
     python scripts\run_forecasts.py
+    $forecastExitCode = $LASTEXITCODE
+
+    if ($forecastExitCode -ne 0) {
+        Write-Host ""
+        Write-Host "Pipeline reported errors (exit code $forecastExitCode)."
+    }
+
+    exit $forecastExitCode
+} elseif ($symbolList.Count -gt 1) {
+    # Multiple symbols: spin off one cmd window per symbol so they run in
+    # parallel, staggering launches slightly to avoid hammering the API/DB
+    # with simultaneous startups.
+    Write-Host "Launching $($symbolList.Count) parallel pipeline windows ..."
+    foreach ($sym in $symbolList) {
+        $forceArg = if ($force) { "--force" } else { "" }
+        $cmdLine = "title $sym && cd /d `"$RepoRoot`" && set PYTHONUTF8=1 && python scripts\run_forecasts.py --symbol `"$sym`" $forceArg"
+        Start-Process cmd.exe -ArgumentList "/k", $cmdLine
+        Write-Host "  Started window for $sym"
+        Start-Sleep -Seconds 2
+    }
+    Write-Host ""
+    Write-Host "All windows launched -- check each window for its own result."
+    exit 0
 } else {
     Write-Host "Running pipeline for $symbolsArg ..."
     if ($force) {
@@ -90,12 +113,12 @@ if ($runAll) {
     } else {
         python scripts\run_forecasts.py --symbols $symbolsArg
     }
-}
-$forecastExitCode = $LASTEXITCODE
+    $forecastExitCode = $LASTEXITCODE
 
-if ($forecastExitCode -ne 0) {
-    Write-Host ""
-    Write-Host "Pipeline reported errors (exit code $forecastExitCode)."
-}
+    if ($forecastExitCode -ne 0) {
+        Write-Host ""
+        Write-Host "Pipeline reported errors (exit code $forecastExitCode)."
+    }
 
-exit $forecastExitCode
+    exit $forecastExitCode
+}
