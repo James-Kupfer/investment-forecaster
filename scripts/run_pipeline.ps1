@@ -92,14 +92,31 @@ if ($runAll) {
 
     exit $forecastExitCode
 } elseif ($symbolList.Count -gt 1) {
-    # Multiple symbols: spin off one cmd window per symbol so they run in
+    # Multiple symbols: spin off one window per symbol so they run in
     # parallel, staggering launches slightly to avoid hammering the API/DB
-    # with simultaneous startups.
+    # with simultaneous startups. Each window runs a small generated PS1
+    # file rather than a single cmd.exe command-line string -- cmd's /K
+    # quote-stripping breaks when the command contains more than one quoted
+    # substring (here, the ticker and the working directory both need
+    # quoting), which corrupted PYTHONUTF8 and crashed the interpreter.
     Write-Host "Launching $($symbolList.Count) parallel pipeline windows ..."
+    $runTempDir = Join-Path $env:TEMP "investment-forecaster-runs"
+    New-Item -ItemType Directory -Path $runTempDir -Force | Out-Null
+    $i = 0
     foreach ($sym in $symbolList) {
+        $i++
         $forceArg = if ($force) { "--force" } else { "" }
-        $cmdLine = "title $sym && cd /d `"$RepoRoot`" && set PYTHONUTF8=1 && python scripts\run_forecasts.py --symbol `"$sym`" $forceArg"
-        Start-Process cmd.exe -ArgumentList "/k", $cmdLine
+        $launchScript = Join-Path $runTempDir "run_$i.ps1"
+        $launchScriptContent = @"
+`$host.UI.RawUI.WindowTitle = "$sym"
+`$env:PYTHONUTF8 = "1"
+Set-Location "$RepoRoot"
+python scripts\run_forecasts.py --symbol "$sym" $forceArg
+Write-Host ""
+Read-Host "Press Enter to close"
+"@
+        Set-Content -Path $launchScript -Value $launchScriptContent -Encoding UTF8
+        Start-Process powershell.exe -ArgumentList "-NoExit", "-ExecutionPolicy", "Bypass", "-File", "`"$launchScript`""
         Write-Host "  Started window for $sym"
         Start-Sleep -Seconds 2
     }
