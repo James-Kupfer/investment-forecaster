@@ -52,6 +52,7 @@ class ElicitationAgent(BaseAgent):
             question_id,
             elicitation_p=result.output.get("final_probability") or result.output.get("initial_probability"),
             question_output=json.dumps(result.output),
+            elicitation_output=json.dumps(result.output),
         )
         return result
 
