@@ -1,6 +1,6 @@
 # Optionally syncs the latest Excel profile data into Postgres, then runs the
-# investment-forecaster pipeline for a single stock symbol or, if "pipeline"
-# is entered, for every active position.
+# investment-forecaster pipeline for a single stock symbol, a comma-separated
+# list of symbols, or, if "pipeline" is entered, for every active position.
 
 $ErrorActionPreference = "Stop"
 $RepoRoot = Split-Path $PSScriptRoot -Parent
@@ -57,8 +57,12 @@ if ($refreshChoice -eq "1") {
     Write-Host ""
 }
 
-# 2. List stock:
-$stockInput = Read-Host "List stock (symbol, or `"pipeline`" to run every active position)"
+# 2. Force?
+$forceChoice = Read-Host "Force? Bypass the triage gate (1 = Yes, 2 = No)"
+$force = $forceChoice -eq "1"
+
+# 3. List stock(s):
+$stockInput = Read-Host "List stock(s) (symbol, comma-separated symbols, or `"pipeline`" to run every active position)"
 if ([string]::IsNullOrWhiteSpace($stockInput)) {
     Write-Host "No stock entered -- exiting."
     Read-Host "Press Enter to close"
@@ -66,11 +70,8 @@ if ([string]::IsNullOrWhiteSpace($stockInput)) {
 }
 $stockInput = $stockInput.Trim()
 $runAll = $stockInput.ToLower() -eq "pipeline"
-$symbol = $stockInput.ToUpper()
-
-# 3. Force?
-$forceChoice = Read-Host "Force? Bypass the triage gate (1 = Yes, 2 = No)"
-$force = $forceChoice -eq "1"
+$symbolList = $stockInput.Split(",") | ForEach-Object { $_.Trim().Trim('"', "'").Trim().ToUpper() } | Where-Object { $_ -ne "" }
+$symbolsArg = $symbolList -join ","
 
 if ($runAll -and $force) {
     Write-Host "Force is not supported for a full pipeline run (--force requires a single symbol) -- ignoring."
@@ -82,19 +83,59 @@ Write-Host ""
 if ($runAll) {
     Write-Host "Running pipeline for all active positions ..."
     python scripts\run_forecasts.py
-} else {
-    Write-Host "Running pipeline for $symbol ..."
-    if ($force) {
-        python scripts\run_forecasts.py --symbol $symbol --force
-    } else {
-        python scripts\run_forecasts.py --symbol $symbol
+    $forecastExitCode = $LASTEXITCODE
+
+    if ($forecastExitCode -ne 0) {
+        Write-Host ""
+        Write-Host "Pipeline reported errors (exit code $forecastExitCode)."
     }
-}
-$forecastExitCode = $LASTEXITCODE
 
-if ($forecastExitCode -ne 0) {
+    exit $forecastExitCode
+} elseif ($symbolList.Count -gt 1) {
+    # Multiple symbols: spin off one window per symbol so they run in
+    # parallel, staggering launches slightly to avoid hammering the API/DB
+    # with simultaneous startups. Each window runs a small generated PS1
+    # file rather than a single cmd.exe command-line string -- cmd's /K
+    # quote-stripping breaks when the command contains more than one quoted
+    # substring (here, the ticker and the working directory both need
+    # quoting), which corrupted PYTHONUTF8 and crashed the interpreter.
+    Write-Host "Launching $($symbolList.Count) parallel pipeline windows ..."
+    $runTempDir = Join-Path $env:TEMP "investment-forecaster-runs"
+    New-Item -ItemType Directory -Path $runTempDir -Force | Out-Null
+    $i = 0
+    foreach ($sym in $symbolList) {
+        $i++
+        $forceArg = if ($force) { "--force" } else { "" }
+        $launchScript = Join-Path $runTempDir "run_$i.ps1"
+        $launchScriptContent = @"
+`$host.UI.RawUI.WindowTitle = "$sym"
+`$env:PYTHONUTF8 = "1"
+Set-Location "$RepoRoot"
+python scripts\run_forecasts.py --symbol "$sym" $forceArg
+Write-Host ""
+Read-Host "Press Enter to close"
+"@
+        Set-Content -Path $launchScript -Value $launchScriptContent -Encoding UTF8
+        Start-Process powershell.exe -ArgumentList "-NoExit", "-ExecutionPolicy", "Bypass", "-File", "`"$launchScript`""
+        Write-Host "  Started window for $sym"
+        Start-Sleep -Seconds 2
+    }
     Write-Host ""
-    Write-Host "Pipeline reported errors (exit code $forecastExitCode)."
-}
+    Write-Host "All windows launched -- check each window for its own result."
+    exit 0
+} else {
+    Write-Host "Running pipeline for $symbolsArg ..."
+    if ($force) {
+        python scripts\run_forecasts.py --symbols $symbolsArg --force
+    } else {
+        python scripts\run_forecasts.py --symbols $symbolsArg
+    }
+    $forecastExitCode = $LASTEXITCODE
 
-exit $forecastExitCode
+    if ($forecastExitCode -ne 0) {
+        Write-Host ""
+        Write-Host "Pipeline reported errors (exit code $forecastExitCode)."
+    }
+
+    exit $forecastExitCode
+}
