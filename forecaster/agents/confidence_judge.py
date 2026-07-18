@@ -3,7 +3,7 @@ from typing import Optional
 
 from forecaster.agents.base import BaseAgent, AgentResult
 from forecaster.db import update_forecast_question_columns
-from forecaster.utils import extract_json
+from forecaster.utils import extract_json, normalize_confidence_word
 
 
 class ConfidenceJudgeAgent(BaseAgent):
@@ -41,7 +41,9 @@ class ConfidenceJudgeAgent(BaseAgent):
         update_forecast_question_columns(
             question_id,
             final_probability=result.output.get("final_probability"),
-            confidence=result.output.get("confidence"),
+            confidence=normalize_confidence_word(
+                result.output.get("confidence"), context=f"confidence_judge/question_{question_id}"
+            ),
             model_id=self.model,
             forecast_rationale=result.output.get("calibration_notes") or result.output.get("rationale"),
             question_output=json.dumps(result.output),

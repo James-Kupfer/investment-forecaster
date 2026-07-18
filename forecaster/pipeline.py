@@ -16,6 +16,7 @@ C:\\Users\\james\\.claude\\plans\\i-updated-the-list-wise-pnueli.md):
 from __future__ import annotations
 
 import logging
+import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import date, timedelta
 from decimal import Decimal
@@ -278,13 +279,20 @@ class ForecastPipeline:
             row = cur.fetchone()
             return float(row[0]) if row else None
 
+    # Matches a leading High/Medium/Low rating word in profile_rationale free
+    # text (e.g. "Medium confidence. Narrative sections all populated...") --
+    # used only to detect a stale sync-layer regression below, never to
+    # silently substitute a value the pipeline should be reading directly
+    # from profile_confidence_rating.
+    _RATIONALE_RATING_RE = re.compile(r"^(High|Medium|Low)\b", re.IGNORECASE)
+
     def _get_position_context(self, symbol: str) -> dict:
         cols = [
             "investment_thesis", "risks", "business", "competitive_landscape", "financials",
             "hold_period", "hold_period_rationale", "name", "label", "type", "asymmetric_rating",
             "risk_level", "risk_level_rationale", "tags", "source_name", "source_link",
-            "profile_change_log", "profile_confidence", "profile_rationale", "profile_model",
-            "thesis_test_date", "thesis_list", "thesis_list_rationale",
+            "profile_change_log", "profile_confidence_rating", "profile_rationale",
+            "profile_model", "thesis_test_date", "thesis_list", "thesis_list_rationale",
             "drawdown_threshold",
         ]
         with portfolio_db_cursor() as cur:
@@ -296,13 +304,32 @@ class ForecastPipeline:
         if not row:
             return {"thesis": ""}
         position = dict(zip(cols, row))
-        for k in ("drawdown_threshold", "profile_confidence"):
-            if isinstance(position.get(k), Decimal):
-                position[k] = float(position[k])
+        if isinstance(position.get("drawdown_threshold"), Decimal):
+            position["drawdown_threshold"] = float(position["drawdown_threshold"])
         if isinstance(position.get("thesis_test_date"), date):
             position["thesis_test_date"] = position["thesis_test_date"].isoformat()
         position["thesis"] = position.pop("investment_thesis") or ""
         position["instrument_type"] = position.pop("type") or None
+        position["profile_confidence"] = position.pop("profile_confidence_rating") or None
+        # Regression guard: profile_confidence_rating (VARCHAR, synced from the
+        # Inventory sheet's Profile Confidence column) should never be null
+        # while profile_rationale plainly names a rating -- that shape is
+        # exactly what excel_sync's decimal-coercion bug produced (see
+        # migrations/007_profile_confidence_rating.sql in
+        # investment-portfolio-manager). Logged loudly rather than silently
+        # backfilled from the rationale, so a sync-layer regression is
+        # visible immediately instead of masked a second time.
+        if not position["profile_confidence"]:
+            rationale = position.get("profile_rationale") or ""
+            match = self._RATIONALE_RATING_RE.match(rationale.strip())
+            if match:
+                logger.warning(
+                    "%s: profile_confidence_rating is empty but profile_rationale "
+                    "starts with %r -- the Excel sync likely dropped this position's "
+                    "rating again. Check excel_sync.py's coercion for "
+                    "profile_confidence_rating.",
+                    symbol, match.group(1),
+                )
         return position
 
     # Instrument types with no issuer earnings/SEC filings of their own — Financial

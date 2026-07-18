@@ -42,7 +42,11 @@ class QuestionDefinitionAgent(BaseAgent):
         cutoff_date = (date.today() + timedelta(days=365)).isoformat()
 
         fields = [
-            ("Instrument type", position.get("instrument_type")),
+            (
+                "Instrument type (per portfolio tracker; may be stale/coarse -- "
+                "trust the Business section's own classification if they conflict)",
+                position.get("instrument_type"),
+            ),
             ("Investment thesis", position.get("thesis")),
             ("Risks (Likelihood/Impact)", position.get("risks")),
             ("Business", position.get("business")),

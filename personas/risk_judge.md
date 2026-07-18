@@ -133,8 +133,10 @@
     restatement of the position's specific risk bullets.
   MUST infer scale_category from business/competitive_landscape text and state
     the basis — MUST NOT default to a fixed scale_category when text is absent;
-    state "insufficient information" and default scale_adjusted_density_flag
-    to false with low confidence in that judgment specifically.
+    state "insufficient information" as the basis (not as the top-level
+    confidence value, which MUST always be exactly high/medium/low per the
+    constraint above — set confidence to "low" here, don't describe the gap
+    in prose) and default scale_adjusted_density_flag to false.
   MUST infer leverage_flag and event_driven_flag from the available text rather
     than expect them as pre-supplied — MUST default both to false when the text
     gives no signal either way, and state that absence in the rationale rather
