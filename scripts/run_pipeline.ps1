@@ -70,7 +70,7 @@ if ([string]::IsNullOrWhiteSpace($stockInput)) {
 }
 $stockInput = $stockInput.Trim()
 $runAll = $stockInput.ToLower() -eq "pipeline"
-$symbolList = $stockInput.Split(",") | ForEach-Object { $_.Trim().ToUpper() } | Where-Object { $_ -ne "" }
+$symbolList = $stockInput.Split(",") | ForEach-Object { $_.Trim().Trim('"', "'").Trim().ToUpper() } | Where-Object { $_ -ne "" }
 $symbolsArg = $symbolList -join ","
 
 if ($runAll -and $force) {

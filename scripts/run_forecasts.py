@@ -22,8 +22,10 @@ logger = logging.getLogger(__name__)
 
 def parse_symbols(raw: str) -> list[str]:
     """Split a comma-separated symbol list, preserving spaces within each entry
-    (e.g. "PANR LSE" foreign-listing notation stays intact as one symbol)."""
-    return [s.strip() for s in raw.split(",") if s.strip()]
+    (e.g. "PANR LSE" foreign-listing notation stays intact as one symbol).
+    Strips surrounding quote characters some users add around spaced tickers
+    (e.g. "PANR LSE", MOH), since those aren't part of the symbol itself."""
+    return [s.strip().strip("'\"") for s in raw.split(",") if s.strip().strip("'\"")]
 
 
 def get_active_symbols() -> list[str]:
