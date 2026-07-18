@@ -1,6 +1,6 @@
 # Optionally syncs the latest Excel profile data into Postgres, then runs the
-# investment-forecaster pipeline for a single stock symbol or, if "pipeline"
-# is entered, for every active position.
+# investment-forecaster pipeline for a single stock symbol, a comma-separated
+# list of symbols, or, if "pipeline" is entered, for every active position.
 
 $ErrorActionPreference = "Stop"
 $RepoRoot = Split-Path $PSScriptRoot -Parent
@@ -57,8 +57,8 @@ if ($refreshChoice -eq "1") {
     Write-Host ""
 }
 
-# 2. List stock:
-$stockInput = Read-Host "List stock (symbol, or `"pipeline`" to run every active position)"
+# 2. List stock(s):
+$stockInput = Read-Host "List stock(s) (symbol, comma-separated symbols, or `"pipeline`" to run every active position)"
 if ([string]::IsNullOrWhiteSpace($stockInput)) {
     Write-Host "No stock entered -- exiting."
     Read-Host "Press Enter to close"
@@ -66,7 +66,8 @@ if ([string]::IsNullOrWhiteSpace($stockInput)) {
 }
 $stockInput = $stockInput.Trim()
 $runAll = $stockInput.ToLower() -eq "pipeline"
-$symbol = $stockInput.ToUpper()
+$symbolList = $stockInput.Split(",") | ForEach-Object { $_.Trim().ToUpper() } | Where-Object { $_ -ne "" }
+$symbolsArg = $symbolList -join ","
 
 # 3. Force?
 $forceChoice = Read-Host "Force? Bypass the triage gate (1 = Yes, 2 = No)"
@@ -83,11 +84,11 @@ if ($runAll) {
     Write-Host "Running pipeline for all active positions ..."
     python scripts\run_forecasts.py
 } else {
-    Write-Host "Running pipeline for $symbol ..."
+    Write-Host "Running pipeline for $symbolsArg ..."
     if ($force) {
-        python scripts\run_forecasts.py --symbol $symbol --force
+        python scripts\run_forecasts.py --symbols $symbolsArg --force
     } else {
-        python scripts\run_forecasts.py --symbol $symbol
+        python scripts\run_forecasts.py --symbols $symbolsArg
     }
 }
 $forecastExitCode = $LASTEXITCODE
