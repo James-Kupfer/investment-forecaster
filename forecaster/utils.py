@@ -1,5 +1,38 @@
 import json
+import logging
 import re
+from typing import Optional
+
+logger = logging.getLogger(__name__)
+
+_CONFIDENCE_WORDS = {
+    "high": "High",
+    "medium": "Medium",
+    "med": "Medium",
+    "moderate": "Medium",
+    "low": "Low",
+}
+
+
+def normalize_confidence_word(value: Optional[str], *, context: str) -> Optional[str]:
+    """Normalize an LLM-produced confidence rating to exactly "High"/"Medium"/
+    "Low", or None. Several forecasts columns storing these ratings
+    (risk_judge_confidence, macroq_confidence, forecast_questions.confidence)
+    are VARCHAR(10) -- writing an LLM's raw free text there unvalidated can
+    crash the whole UPDATE with StringDataRightTruncation (observed live: a
+    risk_judge response for CRGY), taking down the entire pipeline run for
+    that symbol, not just this one column. Fails safe -- logs and returns
+    None -- rather than truncating to something misleading or letting a bad
+    value reach the DB raw."""
+    if not value:
+        return None
+    normalized = _CONFIDENCE_WORDS.get(str(value).strip().lower())
+    if normalized is None:
+        logger.warning(
+            "%s: unrecognized confidence value %r (expected high/medium/low) -- storing NULL",
+            context, value,
+        )
+    return normalized
 
 
 def extract_json(text: str) -> dict:

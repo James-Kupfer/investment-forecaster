@@ -3,7 +3,7 @@ from typing import Optional
 
 from forecaster.agents.base import BaseAgent, AgentResult
 from forecaster.db import update_forecast_columns
-from forecaster.utils import extract_json
+from forecaster.utils import extract_json, normalize_confidence_word
 
 
 class RiskJudgeAgent(BaseAgent):
@@ -67,7 +67,9 @@ class RiskJudgeAgent(BaseAgent):
             forecast_id,
             risk_judge_output=json.dumps(result.output),
             invq2_floor=result.output.get("invq2_floor"),
-            risk_judge_confidence=result.output.get("confidence"),
+            risk_judge_confidence=normalize_confidence_word(
+                result.output.get("confidence"), context=f"risk_judge/{symbol}"
+            ),
             risk_judge_rationale=result.output.get("rationale"),
             risk_judge_model=self.model,
             risk_judge_prompt_version=result.prompt_version_id,
