@@ -7,7 +7,7 @@ from typing import Optional
 from forecaster.agents.base import BaseAgent, AgentResult
 from forecaster.db import db_cursor, update_forecast_columns
 from forecaster.market_data import MarketDataFetcher
-from forecaster.utils import extract_json
+from forecaster.utils import extract_json, normalize_confidence_word
 
 logger = logging.getLogger(__name__)
 
@@ -94,7 +94,9 @@ class MacroQAgent(BaseAgent):
                 forecast_id,
                 macroq_node_id=(root_node.get("node_id") or "")[:50],
                 macroq_p=root_node.get("composite_score"),
-                macroq_confidence=root_node.get("composite_confidence"),
+                macroq_confidence=normalize_confidence_word(
+                    root_node.get("composite_confidence"), context=f"macroq/forecast_{forecast_id}"
+                ),
                 macroq_rationale=root_node.get("composite_rationale") or root_node.get("node_rationale"),
                 macroq_output=json.dumps(result.output),
             )

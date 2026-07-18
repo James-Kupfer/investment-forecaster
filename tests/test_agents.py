@@ -121,6 +121,36 @@ class TestExtractJson:
         assert out["sizing_haircut"] == 0.75
 
 
+class TestNormalizeConfidenceWord:
+    def test_exact_matches_case_insensitive(self):
+        from forecaster.utils import normalize_confidence_word
+        assert normalize_confidence_word("High", context="t") == "High"
+        assert normalize_confidence_word("medium", context="t") == "Medium"
+        assert normalize_confidence_word("LOW", context="t") == "Low"
+
+    def test_med_and_moderate_normalize_to_medium(self):
+        from forecaster.utils import normalize_confidence_word
+        assert normalize_confidence_word("med", context="t") == "Medium"
+        assert normalize_confidence_word("moderate", context="t") == "Medium"
+
+    def test_none_and_empty_pass_through_as_none(self):
+        from forecaster.utils import normalize_confidence_word
+        assert normalize_confidence_word(None, context="t") is None
+        assert normalize_confidence_word("", context="t") is None
+
+    def test_too_long_value_returns_none_not_a_crash(self):
+        """Regression test: a risk_judge response for CRGY put prose (plausibly
+        "insufficient information", 25 chars) into the confidence field, which
+        crashed the whole pipeline run with StringDataRightTruncation against
+        the VARCHAR(10) risk_judge_confidence column. Must fail safe instead."""
+        from forecaster.utils import normalize_confidence_word
+        assert normalize_confidence_word("insufficient information", context="t") is None
+
+    def test_unrecognized_short_value_returns_none(self):
+        from forecaster.utils import normalize_confidence_word
+        assert normalize_confidence_word("n/a", context="t") is None
+
+
 # ---------------------------------------------------------------------------
 # TriageAgent
 # ---------------------------------------------------------------------------
