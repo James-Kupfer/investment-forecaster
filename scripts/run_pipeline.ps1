@@ -112,11 +112,9 @@ if ($runAll) {
 `$env:PYTHONUTF8 = "1"
 Set-Location "$RepoRoot"
 python scripts\run_forecasts.py --symbol "$sym" $forceArg
-Write-Host ""
-Read-Host "Press Enter to close"
 "@
         Set-Content -Path $launchScript -Value $launchScriptContent -Encoding UTF8
-        Start-Process powershell.exe -ArgumentList "-NoExit", "-ExecutionPolicy", "Bypass", "-File", "`"$launchScript`""
+        Start-Process powershell.exe -ArgumentList "-ExecutionPolicy", "Bypass", "-File", "`"$launchScript`""
         Write-Host "  Started window for $sym"
         Start-Sleep -Seconds 2
     }
