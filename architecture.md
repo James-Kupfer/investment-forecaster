@@ -133,7 +133,7 @@ One row per pipeline run per position. Inserted as a partial row at pipeline sta
 | `mechanical_score` | NUMERIC(8,4) | Deterministic EV score — see [Aggregation](#aggregation--from-score-to-recommendation) |
 | `adjusted_score` | NUMERIC(8,4) | `mechanical_score` + clamped LLM delta, in `[-1, 1]` — **this is what `TriageAgent` gates on** |
 | `score_adjustment_rationale`, `decision_rationale` | TEXT | LLM's stated justification for its adjustment / recommendation |
-| `expected_upside_impact`, `expected_downside_impact`, `upside_downside_ratio` | NUMERIC(8,4) | |
+| `expected_upside_impact`, `expected_downside_impact`, `upside_downside_ratio` | NUMERIC(8,4) | The two probability-weighted sides of `mechanical_score`'s ledger (`upside_impact`/`downside_impact` in `compute_mechanical_score`), plus their ratio — stored so the split behind the score is auditable even after normalization collapses it into one `[-1, +1]` number. See [Aggregation](#aggregation--from-score-to-recommendation). |
 | `monitor_list` | TEXT (JSON) | Sub-signal-worthy items excluded from scoring |
 | `nearterm_critical_high_count` | INTEGER | From `QuestionDefinitionAgent` |
 | `scale_adjusted_density_flag` | BOOLEAN | From `RiskJudgeAgent` |
@@ -359,6 +359,8 @@ upside_downside_ratio = upside_impact / downside_impact if downside_impact > 0 e
 ```
 
 `mechanical_score` is normalized to `[-1, +1]` so positions are comparable regardless of how many sub-questions they have — but that same normalization is exactly what pins the score to `±1` whenever every scored question lands on the same side of the ledger (guaranteed at `scored_count=1`, likely at 2–3), since a lone question's probability affects only which side it's on, not the magnitude. `compute_low_n_adjustment` exists specifically to compensate for this.
+
+`upside_impact` and `downside_impact` are stored as `expected_upside_impact`/`expected_downside_impact` (and their ratio as `upside_downside_ratio`) precisely because normalization is lossy: two positions can land on the same `mechanical_score` — say +0.5 — from very different underlying ledgers (a small, one-sided bet vs. a large position with substantial offsetting risk). The raw impact totals and their ratio preserve that magnitude/skew information for calibration review and for the LLM's own rationale (which cites "which catalysts/risks dominated" — [personas/aggregation.md:70](personas/aggregation.md)) even after `mechanical_score` itself has thrown it away. Note `impact_direction == "+"` is the only branch checked — any other value (including a bad/missing one) falls into the `else` and counts as downside, so the split isn't literally "catalysts vs. risks," it's driven by whatever `impact_direction` an upstream agent set on each sub-question.
 
 ### `compute_asymmetry_adjustment(asymmetric_rating) -> float`
 
