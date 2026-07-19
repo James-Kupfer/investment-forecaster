@@ -389,12 +389,12 @@ class TestAggregationAgent:
                                   "rationale_quality_notes": "well-evidenced"}],
             "adjustment_delta": 0.05,
             "score_adjustment_rationale": "minor correlation discount",
-            "recommendation": "buy",
+            "recommendation": "Buy",
             "decision_rationale": "net positive expected impact",
-            "confidence": "medium",
+            "confidence": "Medium",
         }))
         out = agent._parse_response(resp)
-        assert out["recommendation"] == "buy"
+        assert out["recommendation"] == "Buy"
         assert out["question_grades"][0]["rationale_quality_score"] == 0.9
 
     def test_mechanical_score_all_catalysts_is_positive(self):
@@ -471,22 +471,22 @@ class TestAggregationAgent:
         assert AggregationAgent.clamp_adjustment("not a number") == 0.0
 
     def test_recommendation_pass_when_no_questions(self):
-        """pass = insufficient scorable signal, distinct from hold = signal
+        """Pass = insufficient scorable signal, distinct from Hold = signal
         exists and nets neutral (decision 4)."""
         from forecaster.agents.aggregation import AggregationAgent
-        assert AggregationAgent.derive_recommendation([], 0.9, "buy") == "pass"
+        assert AggregationAgent.derive_recommendation([], 0.9, "Buy") == "Pass"
 
     def test_recommendation_uses_llm_value_when_valid(self):
         from forecaster.agents.aggregation import AggregationAgent
         questions = [{"final_probability": 0.5}]
-        assert AggregationAgent.derive_recommendation(questions, 0.01, "sell") == "sell"
+        assert AggregationAgent.derive_recommendation(questions, 0.01, "Sell") == "Sell"
 
     def test_recommendation_falls_back_to_threshold_when_llm_value_missing(self):
         from forecaster.agents.aggregation import AggregationAgent
         questions = [{"final_probability": 0.5}]
-        assert AggregationAgent.derive_recommendation(questions, 0.50, None) == "buy"
-        assert AggregationAgent.derive_recommendation(questions, -0.50, None) == "sell"
-        assert AggregationAgent.derive_recommendation(questions, 0.0, None) == "hold"
+        assert AggregationAgent.derive_recommendation(questions, 0.50, None) == "Buy"
+        assert AggregationAgent.derive_recommendation(questions, -0.50, None) == "Sell"
+        assert AggregationAgent.derive_recommendation(questions, 0.0, None) == "Hold"
 
     def test_recommendation_honors_shifted_thresholds(self):
         """An asymmetric position's shifted thresholds should flip a call that
@@ -495,17 +495,17 @@ class TestAggregationAgent:
         from forecaster.agents.aggregation import AggregationAgent
         questions = [{"final_probability": 0.5}]
         # 0.20 doesn't clear the base 0.35 buy bar...
-        assert AggregationAgent.derive_recommendation(questions, 0.20, None) == "hold"
+        assert AggregationAgent.derive_recommendation(questions, 0.20, None) == "Hold"
         # ...but does clear a shifted 0.15 buy bar for a highly asymmetric position.
         assert AggregationAgent.derive_recommendation(
             questions, 0.20, None, buy_threshold=0.15, sell_threshold=-0.55
-        ) == "buy"
+        ) == "Buy"
         # symmetric check on the sell side: -0.20 doesn't clear the base -0.35 sell bar...
-        assert AggregationAgent.derive_recommendation(questions, -0.20, None) == "hold"
+        assert AggregationAgent.derive_recommendation(questions, -0.20, None) == "Hold"
         # ...and a shifted -0.55 sell bar makes it even less likely to trigger sell.
         assert AggregationAgent.derive_recommendation(
             questions, -0.20, None, buy_threshold=0.15, sell_threshold=-0.55
-        ) == "hold"
+        ) == "Hold"
 
 
 class TestComputeAsymmetryAdjustment:
@@ -588,7 +588,7 @@ class TestComputeLowNAdjustment:
         sell_threshold = -0.35 - low_n_adjustment
         assert AggregationAgent.derive_recommendation(
             questions, score, None, sell_threshold=sell_threshold
-        ) == "sell"  # still floored past even the widened threshold -- signal isn't discarded
+        ) == "Sell"  # still floored past even the widened threshold -- signal isn't discarded
 
 
 # ---------------------------------------------------------------------------
