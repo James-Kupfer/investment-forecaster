@@ -4,12 +4,15 @@ from typing import Optional
 
 from forecaster.agents.base import BaseAgent, AgentResult
 from forecaster.db import update_forecast_columns, update_forecast_question_columns
+from forecaster.utils import normalize_confidence_word
 
 logger = logging.getLogger(__name__)
 
 _SEVERITY_WEIGHT = {"critical": 4, "high": 3}
 
-_VALID_RECOMMENDATIONS = ("buy", "sell", "hold", "pass")
+_VALID_RECOMMENDATIONS = ("Buy", "Sell", "Hold", "Pass")
+
+_VALID_CONFIDENCES = ("High", "Medium", "Low")
 
 # Constrains the model at decode time to exactly this shape. This is the whole
 # reason the agent can parse strictly instead of salvaging: it is structurally
@@ -50,7 +53,7 @@ AGGREGATION_SCHEMA: dict = {
         "score_adjustment_rationale": {"type": "string"},
         "recommendation": {"type": "string", "enum": list(_VALID_RECOMMENDATIONS)},
         "decision_rationale": {"type": "string"},
-        "confidence": {"type": "string", "enum": ["high", "medium", "low"]},
+        "confidence": {"type": "string", "enum": list(_VALID_CONFIDENCES)},
     },
     "required": [
         "question_grades",
@@ -202,14 +205,14 @@ class AggregationAgent(BaseAgent):
         default to the base constants but may be shifted by
         compute_asymmetry_adjustment for a position with convex upside."""
         if not questions:
-            return "pass"
-        if llm_recommendation in ("buy", "sell", "hold", "pass"):
+            return "Pass"
+        if llm_recommendation in _VALID_RECOMMENDATIONS:
             return llm_recommendation
         if adjusted_score >= buy_threshold:
-            return "buy"
+            return "Buy"
         if adjusted_score <= sell_threshold:
-            return "sell"
-        return "hold"
+            return "Sell"
+        return "Hold"
 
     def run(
         self,
@@ -264,11 +267,11 @@ class AggregationAgent(BaseAgent):
                     "Then propose a bounded adjustment (no more than +/-0.30) to the mechanical "
                     "score, with a specific rationale citing which questions were down-weighted "
                     "for weak reasoning and why, and how the risk judge's floor/density flag "
-                    "factors in. Finally, recommend buy, sell, hold, or pass, with a full "
+                    "factors in. Finally, recommend Buy, Sell, Hold, or Pass, with a full "
                     "decision rationale. Output: question_grades (list of {question_index, "
                     "rationale_quality_score, rationale_quality_notes}), adjustment_delta "
                     "(-0.30 to 0.30), score_adjustment_rationale, recommendation "
-                    "(buy|sell|hold|pass), decision_rationale, confidence (high/medium/low)."
+                    "(Buy|Sell|Hold|Pass), decision_rationale, confidence (High/Medium/Low)."
                 ),
             }
         ]
@@ -324,6 +327,16 @@ class AggregationAgent(BaseAgent):
                 buy_threshold=buy_threshold, sell_threshold=sell_threshold,
             )
 
+        # Same "never fabricate" posture as recommendation above, scoped to
+        # confidence -- reuses the same normalize_confidence_word every other
+        # confidence-bearing column (macroq_confidence, risk_judge_confidence,
+        # forecast_questions.confidence) already goes through, which fails
+        # safe to None on an unrecognized value rather than risking a
+        # StringDataRightTruncation crash on the VARCHAR(10) column.
+        confidence = None if result.error else normalize_confidence_word(
+            result.output.get("confidence"), context=f"aggregation/forecast_{forecast_id}"
+        )
+
         for grade in (result.output.get("question_grades") or []):
             idx = grade.get("question_index")
             if idx is None or not isinstance(idx, int) or not (0 <= idx < len(questions)):
@@ -353,6 +366,7 @@ class AggregationAgent(BaseAgent):
             sell_threshold_used=sell_threshold,
             monitor_list=json.dumps(monitor_list),
             recommendation=recommendation,
+            confidence=confidence,
             aggregation_output=json.dumps(result.output),
             schema_version=2,
         )
