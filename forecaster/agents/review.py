@@ -50,6 +50,7 @@ class ReviewAgent(BaseAgent):
             review_flag=review_flag,
             review_rationale=result.output.get("critique") or result.output.get("rationale"),
             question_output=json.dumps(result.output),
+            review_output=json.dumps(result.output),
         )
         return result
 
