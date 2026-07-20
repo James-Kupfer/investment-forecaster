@@ -43,7 +43,7 @@
   nearterm_critical_high_count: INTEGER — count of Critical/High-severity
                                  sub-questions the decomposition agent found
                                  resolvable within 12 months, including any
-                                 pushed to the monitor list by its 7-question
+                                 pushed to the monitor list by its 20-question
                                  cap. This reflects true density, not just what
                                  got scored.
   business:           TEXT     — business/instrument description; primary

@@ -1,15 +1,19 @@
 import json
 import logging
+import math
 from typing import Optional
 
 from forecaster.agents.base import BaseAgent, AgentResult
 from forecaster.db import update_forecast_columns, update_forecast_question_columns
+from forecaster.utils import normalize_confidence_word
 
 logger = logging.getLogger(__name__)
 
-_SEVERITY_WEIGHT = {"critical": 4, "high": 3}
+_SEVERITY_WEIGHT = {"critical": 4, "high": 3, "medium": 2, "low": 1}
 
-_VALID_RECOMMENDATIONS = ("buy", "sell", "hold", "pass")
+_VALID_RECOMMENDATIONS = ("Buy", "Sell", "Hold", "Pass")
+
+_VALID_CONFIDENCES = ("High", "Medium", "Low")
 
 # Constrains the model at decode time to exactly this shape. This is the whole
 # reason the agent can parse strictly instead of salvaging: it is structurally
@@ -50,7 +54,7 @@ AGGREGATION_SCHEMA: dict = {
         "score_adjustment_rationale": {"type": "string"},
         "recommendation": {"type": "string", "enum": list(_VALID_RECOMMENDATIONS)},
         "decision_rationale": {"type": "string"},
-        "confidence": {"type": "string", "enum": ["high", "medium", "low"]},
+        "confidence": {"type": "string", "enum": list(_VALID_CONFIDENCES)},
     },
     "required": [
         "question_grades",
@@ -71,34 +75,37 @@ _MAX_ADJUSTMENT = 0.30
 _BUY_THRESHOLD = 0.35
 _SELL_THRESHOLD = -0.35
 
-# Risk/reward asymmetry: a position that can move 10x in a year justifies accepting
-# more mechanical-score risk than one with a capped/linear payoff at the same
-# probability profile (Kelly-style — probability x magnitude, not just probability x
-# qualitative severity tier, which is all compute_mechanical_score's fixed
-# critical/high weights capture on their own). Both thresholds move toward more risk
-# tolerance together: buy gets easier to trigger, sell gets harder (don't dump a
-# moonshot candidate on a single bad data point) — both by the same amount, since
-# the underlying justification (large asymmetric payoff) applies symmetrically.
+# Risk/reward asymmetry: a position with a plausible multibagger payoff justifies
+# accepting more mechanical-score risk than one with a capped/linear payoff at the
+# same probability profile. Both thresholds move toward more risk tolerance together:
+# buy gets easier to trigger, sell gets harder (don't dump a moonshot on a single bad
+# data point) — both by the same amount.
 #
 # asymmetric_rating is the investment-profile skill's own categorical field
 # (positions.asymmetric_rating): High/Medium/Low/No, rating the plausible ~1-year
-# return path as High=10x, Medium>=5x, Low>=1x, else No. The adjustment is derived
-# directly from those floor multiples, scaled against "High" (10x) as the fully
-# asymmetric reference — not an independently-invented scale.
-_MAX_ASYMMETRY_ADJUSTMENT = 0.20
-_ASYMMETRY_RATING_MULTIPLES = {"high": 10.0, "medium": 5.0, "low": 1.0, "no": 0.0}
-_ASYMMETRY_REFERENCE_MULTIPLE = 10.0
+# return path as an Nx return — High=5x (+500%), Medium=2x (+200%), Low=1x (a double,
+# +100%), else No (short of a double). Upside-only: "No" is the residual and gets zero
+# shift, never a downside penalty. The adjustment is proportional to the rating's
+# return multiple, scaled against High (5x) as the fully asymmetric reference.
+_MAX_ASYMMETRY_ADJUSTMENT = 0.25
+_ASYMMETRY_RATING_MULTIPLES = {"high": 5.0, "medium": 2.0, "low": 1.0, "no": 0.0}
+_ASYMMETRY_REFERENCE_MULTIPLE = 5.0
 
-# compute_mechanical_score's normalization pins the score to +/-1 whenever every
-# scored question lands on the same side of the ledger (guaranteed at n=1, likely
-# at n=2-3) — the probability of that lone question never enters the sign or
-# magnitude, only which side it's on. The signal is still real (decision 2 never
-# discards a scored question), but the buy/sell thresholds widen — more risk
-# tolerance toward "hold" — the fewer questions back the score, tapering linearly
-# to zero once a position has _FULL_QUESTION_COUNT or more (a fuller decomposition
-# no longer risks being dominated by a single item).
-_MAX_LOW_N_ADJUSTMENT = 0.20
-_FULL_QUESTION_COUNT = 4
+# Conviction multiplier: compute_mechanical_score's normalization ((up-down)/(up+down))
+# preserves only direction and one-sidedness — never how much total weighted evidence
+# is actually on the table, so a lone low-probability question pins the score to +/-1.
+# We restore magnitude by scaling the normalized tilt by a saturating conviction factor
+# in [0,1): conviction = 1 - exp(-M/k), where M = upside_impact + downside_impact (total
+# weighted evidence). A thin, low-M ledger attenuates the decision score toward hold; a
+# well-covered one keeps near-full tilt. This replaces the old low-n threshold widening
+# (a thin ledger now attenuates the score directly rather than widening the bar). k is a
+# saturation scale to be calibrated once position-level outcomes exist.
+#
+# Below M_FLOOR there is too little total evidence to act at all: the position is Pass
+# (insufficient signal) regardless of how one-sided the tilt is — distinct from Hold
+# (real signal that nets neutral). Both k and M_FLOOR are priors pending calibration.
+_K_CONVICTION = 7.0
+_M_FLOOR = 1.0
 
 
 class AggregationAgent(BaseAgent):
@@ -121,7 +128,7 @@ class AggregationAgent(BaseAgent):
         many sub-questions they have. scored_count is the number of questions
         that actually contributed a weighted probability (excludes ones with no
         final_probability or a zero severity weight) — the true sample size
-        behind the score, for compute_low_n_adjustment."""
+        behind the score."""
         upside_impact = 0.0
         downside_impact = 0.0
         scored_count = 0
@@ -159,22 +166,17 @@ class AggregationAgent(BaseAgent):
         return round(scale * _MAX_ASYMMETRY_ADJUSTMENT, 4)
 
     @staticmethod
-    def compute_low_n_adjustment(scored_count: int) -> float:
-        """
-        Points to widen both buy/sell thresholds toward "hold" as scored_count
-        drops below _FULL_QUESTION_COUNT — a lone scored question (or a
-        thin 2-3 question set) gets fully floored/ceilinged to +/-1 by
-        compute_mechanical_score regardless of its actual probability, so a
-        thinner set should need a stronger adjusted_score to still clear the
-        buy/sell bar. Zero once scored_count >= _FULL_QUESTION_COUNT (a fuller
-        decomposition is no longer at risk of one item dominating the score).
-        Zero for scored_count <= 0 too — derive_recommendation already sends
-        an empty scored set to "pass", not a floored buy/sell.
-        """
-        if scored_count <= 0 or scored_count >= _FULL_QUESTION_COUNT:
+    def compute_conviction(total_evidence: float) -> float:
+        """Saturating conviction multiplier in [0, 1): 1 - exp(-M/_K_CONVICTION),
+        where M = total weighted evidence (upside_impact + downside_impact). The
+        normalized tilt is scaled by this so a thin, low-evidence ledger attenuates
+        the decision score toward hold while a well-covered one keeps near-full tilt.
+        Replaces compute_low_n_adjustment (a thin ledger now shrinks the score
+        directly instead of widening the threshold). Returns 0.0 for non-positive
+        evidence."""
+        if total_evidence <= 0:
             return 0.0
-        scale = (_FULL_QUESTION_COUNT - scored_count) / (_FULL_QUESTION_COUNT - 1)
-        return round(scale * _MAX_LOW_N_ADJUSTMENT, 4)
+        return round(1.0 - math.exp(-total_evidence / _K_CONVICTION), 4)
 
     @staticmethod
     def clamp_adjustment(delta) -> float:
@@ -190,26 +192,32 @@ class AggregationAgent(BaseAgent):
     @staticmethod
     def derive_recommendation(
         questions: list,
-        adjusted_score: float,
+        final_score: float,
         llm_recommendation,
+        total_evidence: Optional[float] = None,
         buy_threshold: float = _BUY_THRESHOLD,
         sell_threshold: float = _SELL_THRESHOLD,
     ) -> str:
-        """buy/sell/hold/pass per decision 4: pass means insufficient scorable
-        signal (empty question set), distinct from hold (signal exists, nets
-        neutral). Falls back to threshold mapping if the LLM's own
-        recommendation is missing or malformed. buy_threshold/sell_threshold
-        default to the base constants but may be shifted by
-        compute_asymmetry_adjustment for a position with convex upside."""
+        """buy/sell/hold/pass per decision 4: Pass means insufficient scorable
+        signal, distinct from Hold (signal exists, nets neutral). Two Pass paths:
+        an empty question set, and — when total_evidence is supplied — a position
+        whose total weighted evidence is below _M_FLOOR (too little to act on,
+        regardless of tilt); this floor overrides even a valid LLM recommendation.
+        Otherwise returns the LLM's own recommendation when valid, falling back to
+        a threshold mapping on final_score (the conviction-scaled tilt).
+        buy_threshold/sell_threshold default to the base constants but may be
+        shifted by compute_asymmetry_adjustment for a position with convex upside."""
         if not questions:
-            return "pass"
-        if llm_recommendation in ("buy", "sell", "hold", "pass"):
+            return "Pass"
+        if total_evidence is not None and total_evidence < _M_FLOOR:
+            return "Pass"
+        if llm_recommendation in _VALID_RECOMMENDATIONS:
             return llm_recommendation
-        if adjusted_score >= buy_threshold:
-            return "buy"
-        if adjusted_score <= sell_threshold:
-            return "sell"
-        return "hold"
+        if final_score >= buy_threshold:
+            return "Buy"
+        if final_score <= sell_threshold:
+            return "Sell"
+        return "Hold"
 
     def run(
         self,
@@ -223,10 +231,11 @@ class AggregationAgent(BaseAgent):
         mechanical_score, upside_impact, downside_impact, upside_downside_ratio, scored_count = (
             self.compute_mechanical_score(questions)
         )
+        total_evidence = round(upside_impact + downside_impact, 4)
+        conviction = self.compute_conviction(upside_impact + downside_impact)
         asymmetry_adjustment = self.compute_asymmetry_adjustment(asymmetric_rating)
-        low_n_adjustment = self.compute_low_n_adjustment(scored_count)
-        buy_threshold = _BUY_THRESHOLD - asymmetry_adjustment + low_n_adjustment
-        sell_threshold = _SELL_THRESHOLD - asymmetry_adjustment - low_n_adjustment
+        buy_threshold = _BUY_THRESHOLD - asymmetry_adjustment
+        sell_threshold = _SELL_THRESHOLD - asymmetry_adjustment
 
         _, system_prompt = self.get_active_prompt()
         messages = [
@@ -251,24 +260,27 @@ class AggregationAgent(BaseAgent):
                     f"more mechanical-score risk than a capped/linear payoff would. Reflect this "
                     f"explicitly in decision_rationale when it affects your recommendation; do "
                     f"not re-litigate the shift itself, only the recommendation given it.\n\n"
-                    f"Scored question count: {scored_count} (of {_FULL_QUESTION_COUNT} treated as a "
-                    f"full decomposition). With few scored questions, the mechanical score is "
-                    f"normalized against a thin or single-item ledger and gets pinned toward the "
-                    f"+/-1 floor/ceiling regardless of that question's actual probability — the "
-                    f"signal is still real, it is just less diversified. The thresholds above "
-                    f"already include a low-n widening of {low_n_adjustment:+.4f} toward hold for "
-                    f"this reason (zero once scored_count >= {_FULL_QUESTION_COUNT}); do not "
-                    f"re-litigate that widening itself, only the recommendation given it.\n\n"
+                    f"Total weighted evidence on this position (M = expected upside + downside "
+                    f"impact): {total_evidence:.4f}. Conviction multiplier (saturating, "
+                    f"1 - exp(-M/{_K_CONVICTION:.0f}), in [0,1)): {conviction:.4f}. The mechanical "
+                    f"score is normalized ((up-down)/(up+down)), so it captures direction and "
+                    f"one-sidedness but not magnitude — a thin ledger pins it to +/-1. The decision "
+                    f"score restores magnitude by scaling the tilt by conviction: final_score = "
+                    f"(mechanical_score + your adjustment_delta) x {conviction:.4f}. Judge Buy/Sell/"
+                    f"Hold against final_score versus the buy/sell thresholds above, NOT the raw "
+                    f"mechanical_score. If M is below {_M_FLOOR:.1f} the position has insufficient "
+                    f"total evidence to act and MUST be Pass regardless of tilt (also enforced in "
+                    f"code).\n\n"
                     "For EACH sub-question, grade the quality and logic of its forecast rationale "
                     "(0-1) — is it sound, evidence-backed, non-circular? Note any concerns. "
                     "Then propose a bounded adjustment (no more than +/-0.30) to the mechanical "
                     "score, with a specific rationale citing which questions were down-weighted "
                     "for weak reasoning and why, and how the risk judge's floor/density flag "
-                    "factors in. Finally, recommend buy, sell, hold, or pass, with a full "
+                    "factors in. Finally, recommend Buy, Sell, Hold, or Pass, with a full "
                     "decision rationale. Output: question_grades (list of {question_index, "
                     "rationale_quality_score, rationale_quality_notes}), adjustment_delta "
                     "(-0.30 to 0.30), score_adjustment_rationale, recommendation "
-                    "(buy|sell|hold|pass), decision_rationale, confidence (high/medium/low)."
+                    "(Buy|Sell|Hold|Pass), decision_rationale, confidence (High/Medium/Low)."
                 ),
             }
         ]
@@ -292,6 +304,7 @@ class AggregationAgent(BaseAgent):
 
         delta = self.clamp_adjustment(result.output.get("adjustment_delta"))
         adjusted_score = max(-1.0, min(1.0, mechanical_score + delta))
+        final_score = round(adjusted_score * conviction, 4)
 
         llm_recommendation = result.output.get("recommendation")
         if questions and (result.error or llm_recommendation not in _VALID_RECOMMENDATIONS):
@@ -312,17 +325,28 @@ class AggregationAgent(BaseAgent):
             logger.error(
                 "aggregation produced no usable recommendation for forecast_id=%s "
                 "(error=%r, recommendation=%r) — leaving recommendation NULL rather "
-                "than substituting a mechanical threshold read. adjusted_score=%.4f "
-                "vs buy_threshold=%.4f/sell_threshold=%.4f.",
+                "than substituting a mechanical threshold read. final_score=%.4f "
+                "(adjusted_score=%.4f x conviction=%.4f) vs buy_threshold=%.4f/sell_threshold=%.4f.",
                 forecast_id, result.error, llm_recommendation,
-                adjusted_score, buy_threshold, sell_threshold,
+                final_score, adjusted_score, conviction, buy_threshold, sell_threshold,
             )
             recommendation = None
         else:
             recommendation = self.derive_recommendation(
-                questions, adjusted_score, llm_recommendation,
+                questions, final_score, llm_recommendation,
+                total_evidence=total_evidence,
                 buy_threshold=buy_threshold, sell_threshold=sell_threshold,
             )
+
+        # Same "never fabricate" posture as recommendation above, scoped to
+        # confidence -- reuses the same normalize_confidence_word every other
+        # confidence-bearing column (macroq_confidence, risk_judge_confidence,
+        # forecast_questions.confidence) already goes through, which fails
+        # safe to None on an unrecognized value rather than risking a
+        # StringDataRightTruncation crash on the VARCHAR(10) column.
+        confidence = None if result.error else normalize_confidence_word(
+            result.output.get("confidence"), context=f"aggregation/forecast_{forecast_id}"
+        )
 
         for grade in (result.output.get("question_grades") or []):
             idx = grade.get("question_index")
@@ -341,18 +365,21 @@ class AggregationAgent(BaseAgent):
             forecast_id,
             mechanical_score=mechanical_score,
             adjusted_score=adjusted_score,
+            conviction=conviction,
+            total_evidence=total_evidence,
+            final_score=final_score,
             score_adjustment_rationale=result.output.get("score_adjustment_rationale"),
             decision_rationale=result.output.get("decision_rationale"),
             expected_upside_impact=upside_impact,
             expected_downside_impact=downside_impact,
             upside_downside_ratio=upside_downside_ratio,
             asymmetry_adjustment=asymmetry_adjustment,
-            low_n_adjustment=low_n_adjustment,
             question_count=scored_count,
             buy_threshold_used=buy_threshold,
             sell_threshold_used=sell_threshold,
             monitor_list=json.dumps(monitor_list),
             recommendation=recommendation,
+            confidence=confidence,
             aggregation_output=json.dumps(result.output),
             schema_version=2,
         )

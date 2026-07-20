@@ -133,14 +133,16 @@ One row per pipeline run per position. Inserted as a partial row at pipeline sta
 | `mechanical_score` | NUMERIC(8,4) | Deterministic EV score — see [Aggregation](#aggregation--from-score-to-recommendation) |
 | `adjusted_score` | NUMERIC(8,4) | `mechanical_score` + clamped LLM delta, in `[-1, 1]` — **this is what `TriageAgent` gates on** |
 | `score_adjustment_rationale`, `decision_rationale` | TEXT | LLM's stated justification for its adjustment / recommendation |
-| `expected_upside_impact`, `expected_downside_impact`, `upside_downside_ratio` | NUMERIC(8,4) | |
+| `expected_upside_impact`, `expected_downside_impact`, `upside_downside_ratio` | NUMERIC(8,4) | The two probability-weighted sides of `mechanical_score`'s ledger (`upside_impact`/`downside_impact` in `compute_mechanical_score`), plus their ratio — stored so the split behind the score is auditable even after normalization collapses it into one `[-1, +1]` number. See [Aggregation](#aggregation--from-score-to-recommendation). |
 | `monitor_list` | TEXT (JSON) | Sub-signal-worthy items excluded from scoring |
 | `nearterm_critical_high_count` | INTEGER | From `QuestionDefinitionAgent` |
 | `scale_adjusted_density_flag` | BOOLEAN | From `RiskJudgeAgent` |
 | `asymmetry_adjustment` | NUMERIC(8,4) | Points shifted toward risk tolerance from `asymmetric_rating` |
-| `low_n_adjustment` | NUMERIC(8,4) | Points shifted toward hold from a thin `scored_count` |
+| `total_evidence` | NUMERIC(10,4) | M = `expected_upside_impact` + `expected_downside_impact` — total weighted evidence; input to the conviction multiplier and the low-signal Pass floor |
+| `conviction` | NUMERIC(8,4) | Saturating multiplier `1 − exp(−M/k)` ∈ [0,1) that scales the tilt into `final_score` |
+| `final_score` | NUMERIC(8,4) | The decision score: `(mechanical_score + clamped delta) × conviction`. **This is what the buy/sell thresholds are compared against** |
 | `question_count` | INTEGER | = `scored_count` from `compute_mechanical_score` |
-| `buy_threshold_used`, `sell_threshold_used` | NUMERIC(8,4) | The actual thresholds applied this run, after both adjustments |
+| `buy_threshold_used`, `sell_threshold_used` | NUMERIC(8,4) | The actual thresholds applied this run, after the asymmetry shift |
 | `recommendation` | VARCHAR(20) | `buy` / `sell` / `hold` / `pass` |
 | `aggregation_output` | TEXT (JSON) | Full raw LLM output from the aggregation call |
 
@@ -296,7 +298,7 @@ Each agent's `run()` calls `get_active_prompt()`, builds messages, calls `self.c
 `forecaster/agents/triage.py`. `THRESHOLD = 0.30` (hardcoded class constant). `run(prior_adjusted_score: Optional[float]) -> bool` — `True` (proceed) if `prior_adjusted_score is None` (first run) or `abs(prior_adjusted_score) >= THRESHOLD`; `False` otherwise. See the README's [Triage](README.md#triage-the-gate-before-spending-any-money) section for the full behavioral explanation, including how `--force` is used to trigger a deliberate, per-symbol "has the thesis changed?" refresh outside the normal triage-gated schedule.
 
 #### `QuestionDefinitionAgent`
-**agent_id:** `question_definition`. **Input:** `symbol`, `position: dict`, `forecast_id`, `macro_state_id=None`. Decomposes `position["thesis"]` + risk fields into up to 7 (`MAX_QUESTIONS`) Critical/High-impact catalyst/risk sub-questions, each resolvable within ~12 months. Does not classify long/short. **Output:** `{questions: [...], monitor_list: [...], nearterm_critical_high_count}`. **Writes:** `forecasts.question_def_output`, `nearterm_critical_high_count`; each question is inserted into `forecast_questions` by `pipeline.py` (not by this agent directly).
+**agent_id:** `question_definition`. **Input:** `symbol`, `position: dict`, `forecast_id`, `macro_state_id=None`. Decomposes `position["thesis"]` + risk fields via a six-lens sweep (financial, business-execution, competitive, regulatory, macro/FX, valuation) into up to 20 (`MAX_QUESTIONS`) catalyst/risk sub-questions, each resolvable within ~12 months. Catalysts are gated at Critical/High severity; risks are admitted when Impact is High OR Likelihood is High, and tagged impact_magnitude critical/high/medium/low. Does not classify long/short. **Output:** `{questions: [...], monitor_list: [...], nearterm_critical_high_count}`. **Writes:** `forecasts.question_def_output`, `nearterm_critical_high_count`; each question is inserted into `forecast_questions` by `pipeline.py` (not by this agent directly).
 
 #### `MacroQAgent`
 **agent_id:** `macroq`. **Input:** `forecast_id=None`, `macro_state_id=None` — can run standalone (daily job, no position needed). Fetches a live snapshot (VIX, DXY, 10Y/2Y rates, 6 sector ETFs) via `MarketDataFetcher`, builds a macro decision tree. **Output:** `{root_macro_state_id, nodes: [...]}`. **Writes:** every node into `macro_state` (UUID-suffixed `node_id`s); root node summary into `forecasts.macroq_*` when `forecast_id` is given.
@@ -326,7 +328,7 @@ Each agent's `run()` calls `get_active_prompt()`, builds messages, calls `self.c
 **agent_id:** `confidence_judge`. **Input:** `elicitation_output`, `review_output`, `question_id`, `forecast_id`, `macro_state_id=None`. Uses the reviewed probability if `review_flag=True`; applies shrinkage toward the outside view when inside/outside estimates diverge by more than 0.20; computes a confidence interval. **Output:** `final_probability`, `ci_lower`, `ci_upper`, `confidence`, `rationale`. **Writes:** `forecast_questions.final_probability`, `confidence`, `model_id`, `forecast_rationale`, `question_output`. This is the probability `AggregationAgent` actually scores.
 
 #### `AggregationAgent`
-**agent_id:** `aggregation`. **Input:** `questions: list`, `monitor_list: list`, `risk_floor_output: dict`, `forecast_id`, `asymmetric_rating: Optional[str] = None`, `macro_state_id=None`. The final decision agent — see the dedicated section below. **Writes:** `forecasts.mechanical_score`, `adjusted_score`, `score_adjustment_rationale`, `decision_rationale`, `expected_upside_impact`, `expected_downside_impact`, `upside_downside_ratio`, `asymmetry_adjustment`, `low_n_adjustment`, `question_count`, `buy_threshold_used`, `sell_threshold_used`, `monitor_list`, `recommendation`, `aggregation_output`, `schema_version=2`; also `forecast_questions.rationale_quality_score`/`rationale_quality_notes` per question via its per-question grading.
+**agent_id:** `aggregation`. **Input:** `questions: list`, `monitor_list: list`, `risk_floor_output: dict`, `forecast_id`, `asymmetric_rating: Optional[str] = None`, `macro_state_id=None`. The final decision agent — see the dedicated section below. **Writes:** `forecasts.mechanical_score`, `adjusted_score`, `score_adjustment_rationale`, `decision_rationale`, `expected_upside_impact`, `expected_downside_impact`, `upside_downside_ratio`, `asymmetry_adjustment`, `conviction`, `total_evidence`, `final_score`, `question_count`, `buy_threshold_used`, `sell_threshold_used`, `monitor_list`, `recommendation`, `aggregation_output`, `schema_version=2`; also `forecast_questions.rationale_quality_score`/`rationale_quality_notes` per question via its per-question grading.
 
 `max_tokens=32000` for this call specifically — an 8096 budget was observed truncating mid-`decision_rationale` on a live 7-question run (thorough per-question grading notes × up to 7 questions adds up fast), and the underlying model has been observed drafting a full JSON object, writing a self-correcting narrative aside, then emitting a second complete object — `extract_json`'s "prefer the last complete object" behavior exists specifically to handle that, but the token budget still has to cover both attempts.
 
@@ -339,7 +341,7 @@ Each agent's `run()` calls `get_active_prompt()`, builds messages, calls `self.c
 ### `compute_mechanical_score(questions) -> (mechanical_score, upside_impact, downside_impact, upside_downside_ratio, scored_count)`
 
 ```python
-_SEVERITY_WEIGHT = {"critical": 4, "high": 3}   # medium/low -> weight 0, excluded
+_SEVERITY_WEIGHT = {"critical": 4, "high": 3, "medium": 2, "low": 1}   # impact_magnitude tiers
 
 for q in questions:
     p = q["final_probability"]
@@ -358,14 +360,16 @@ mechanical_score = (upside_impact - downside_impact) / total if total > 0 else 0
 upside_downside_ratio = upside_impact / downside_impact if downside_impact > 0 else None
 ```
 
-`mechanical_score` is normalized to `[-1, +1]` so positions are comparable regardless of how many sub-questions they have — but that same normalization is exactly what pins the score to `±1` whenever every scored question lands on the same side of the ledger (guaranteed at `scored_count=1`, likely at 2–3), since a lone question's probability affects only which side it's on, not the magnitude. `compute_low_n_adjustment` exists specifically to compensate for this.
+`mechanical_score` is normalized to `[-1, +1]` so positions are comparable regardless of how many sub-questions they have — but that same normalization is exactly what pins the score to `±1` whenever every scored question lands on the same side of the ledger (guaranteed at `scored_count=1`, likely at 2–3), since a lone question's probability affects only which side it's on, not the magnitude. The decision restores that lost magnitude by scaling the tilt by a saturating `conviction` multiplier (see `compute_conviction` below), and routes any position with too little total evidence straight to `Pass`.
+
+`upside_impact` and `downside_impact` are stored as `expected_upside_impact`/`expected_downside_impact` (and their ratio as `upside_downside_ratio`) precisely because normalization is lossy: two positions can land on the same `mechanical_score` — say +0.5 — from very different underlying ledgers (a small, one-sided bet vs. a large position with substantial offsetting risk). The raw impact totals and their ratio preserve that magnitude/skew information for calibration review and for the LLM's own rationale (which cites "which catalysts/risks dominated" — [personas/aggregation.md:70](personas/aggregation.md)) even after `mechanical_score` itself has thrown it away. Note `impact_direction == "+"` is the only branch checked — any other value (including a bad/missing one) falls into the `else` and counts as downside, so the split isn't literally "catalysts vs. risks," it's driven by whatever `impact_direction` an upstream agent set on each sub-question.
 
 ### `compute_asymmetry_adjustment(asymmetric_rating) -> float`
 
 ```python
-_ASYMMETRY_RATING_MULTIPLES = {"high": 10.0, "medium": 5.0, "low": 1.0, "no": 0.0}
-_ASYMMETRY_REFERENCE_MULTIPLE = 10.0
-_MAX_ASYMMETRY_ADJUSTMENT = 0.20
+_ASYMMETRY_RATING_MULTIPLES = {"high": 5.0, "medium": 2.0, "low": 1.0, "no": 0.0}
+_ASYMMETRY_REFERENCE_MULTIPLE = 5.0
+_MAX_ASYMMETRY_ADJUSTMENT = 0.25
 
 multiple = _ASYMMETRY_RATING_MULTIPLES.get(str(asymmetric_rating).strip().lower())
 if not multiple:            # missing, "no", or unrecognized -> no shift
@@ -374,41 +378,42 @@ scale = min(multiple / _ASYMMETRY_REFERENCE_MULTIPLE, 1.0)
 return round(scale * _MAX_ASYMMETRY_ADJUSTMENT, 4)
 ```
 
-`asymmetric_rating` comes from `positions.asymmetric_rating` (set by the sibling `investment-profile` skill): High/Medium/Low/No, rating the plausible ~1-year return path as High=10x, Medium≥5x, Low≥1x, else No. Result: **High → +0.20, Medium → +0.10, Low → +0.02, No/unrecognized → 0.0.**
+`asymmetric_rating` comes from `positions.asymmetric_rating` (set by the sibling `investment-profile` skill): High/Medium/Low/No, rating the plausible ~1-year return path as an Nx return — High=5x (+500%), Medium=2x (+200%), Low=1x (a double), else No (short of a double). The shift is proportional to the return multiple, scaled against High (5x) as the reference. Result: **High → +0.25, Medium → +0.10, Low → +0.05, No/unrecognized → 0.0.** Upside-only: `No` is the residual and never a downside penalty.
 
-### `compute_low_n_adjustment(scored_count) -> float`
+### `compute_conviction(total_evidence) -> float`
 
 ```python
-_FULL_QUESTION_COUNT = 4
-_MAX_LOW_N_ADJUSTMENT = 0.20
+_K_CONVICTION = 7.0    # saturation scale (prior, pending calibration)
+_M_FLOOR = 1.0         # below this M, insufficient signal -> Pass
 
-if scored_count <= 0 or scored_count >= _FULL_QUESTION_COUNT:
+if total_evidence <= 0:
     return 0.0
-scale = (_FULL_QUESTION_COUNT - scored_count) / (_FULL_QUESTION_COUNT - 1)
-return round(scale * _MAX_LOW_N_ADJUSTMENT, 4)
+return round(1.0 - math.exp(-total_evidence / _K_CONVICTION), 4)
 ```
 
-Result: **n=1 → +0.20, n=2 → +0.1333, n=3 → +0.0667, n≥4 → 0.0** (linear taper). `scored_count=0` also returns `0.0` — `derive_recommendation` already routes an empty question set straight to `"pass"`, not a floored buy/sell.
+`total_evidence` is **M = upside_impact + downside_impact** — the total weighted evidence behind the position. `conviction` saturates in `[0, 1)`: **M=1 → 0.13, M=2 → 0.25, M=7 → 0.63, M=15 → 0.88**. It restores the magnitude that `mechanical_score`'s normalization throws away, by scaling the tilt into `final_score` (below): a thin, low-evidence ledger attenuates the decision toward hold, a well-covered one keeps near-full tilt. This **replaces** `compute_low_n_adjustment` — instead of widening the threshold for a thin ledger, a thin ledger now shrinks the score directly (a lone low-probability question that pins `mechanical_score` to ±1 is pulled back toward 0 by its low M). Both `k` and `_M_FLOOR` are priors to be calibrated once position-level outcomes exist.
 
-### Threshold derivation
+### Decision score and threshold derivation
 
 ```python
 _BUY_THRESHOLD, _SELL_THRESHOLD = 0.35, -0.35
 
-buy_threshold  = _BUY_THRESHOLD  - asymmetry_adjustment + low_n_adjustment
-sell_threshold = _SELL_THRESHOLD - asymmetry_adjustment - low_n_adjustment
+buy_threshold  = _BUY_THRESHOLD  - asymmetry_adjustment
+sell_threshold = _SELL_THRESHOLD - asymmetry_adjustment
+
+final_score = round(adjusted_score * conviction, 4)   # adjusted_score = mechanical_score + clamped delta
 ```
 
-Both adjustments push in the same direction — buy easier to trigger, sell harder — for different reasons: asymmetry because a convex payoff justifies more mechanical-score risk; low-n because a thin ledger's score is artificially pinned toward ±1 and shouldn't be trusted at the base threshold. They stack (both subtract from `buy_threshold`, both get added-with-a-minus to `sell_threshold`) rather than one replacing the other.
+The buy/sell thresholds shift only for asymmetry now (buy easier to trigger, sell harder — a convex payoff justifies more mechanical-score risk). Thin-ledger handling moved out of the threshold and into the score itself: `final_score` is the conviction-scaled tilt, so a thin/low-evidence position attenuates toward hold without moving the bar. The recommendation compares `final_score` to these thresholds — with one hard override ahead of everything: if **M < `_M_FLOOR`** the position is `Pass` (too little total evidence to act, regardless of tilt), distinct from a neutral `Hold`.
 
 ### `clamp_adjustment(delta) -> float`
 Coerces to float (`0.0` on `TypeError`/`ValueError`), clamps to `[-0.30, 0.30]` (`_MAX_ADJUSTMENT`) — the LLM's proposed nudge to the mechanical score can never move it further than this, and a malformed value just becomes zero rather than erroring.
 
-### `derive_recommendation(questions, adjusted_score, llm_recommendation, buy_threshold, sell_threshold) -> str`
-Empty `questions` → `"pass"` (insufficient scorable signal — distinct from `"hold"`, which means signal exists and nets neutral). If the LLM returned a valid `buy`/`sell`/`hold`/`pass`, use it verbatim. Otherwise fall back to the mechanical threshold mapping against `adjusted_score`.
+### `derive_recommendation(questions, final_score, llm_recommendation, total_evidence, buy_threshold, sell_threshold) -> str`
+Empty `questions` → `"Pass"` (insufficient scorable signal — distinct from `"Hold"`, which means signal exists and nets neutral). Then the evidence floor: if `total_evidence` is below `_M_FLOOR`, `"Pass"` — this **overrides even a valid LLM recommendation**. Otherwise, if the LLM returned a valid `Buy`/`Sell`/`Hold`/`Pass`, use it verbatim; else fall back to the threshold mapping against `final_score` (the conviction-scaled tilt).
 
 ### What the LLM actually contributes
-`run()` computes everything above in code first, then sends the questions, monitor list, risk-judge output, mechanical score, and both adjustments (already applied to the thresholds shown to the model) to the LLM, and asks for exactly three things: (1) a `rationale_quality_score`/`rationale_quality_notes` grade for each sub-question's reasoning, (2) a bounded `adjustment_delta` (±0.30) with `score_adjustment_rationale`, and (3) a `recommendation` with `decision_rationale`. The prompt explicitly tells the model not to re-litigate the asymmetry/low-n shifts themselves — only to factor the already-adjusted thresholds into its recommendation. `adjusted_score = clamp(mechanical_score + clamp_adjustment(delta), -1, 1)`. Nothing about `mechanical_score`, `upside_impact`, `downside_impact`, or the threshold values is LLM-computed — only `adjusted_score`'s *delta* and the final label (when the LLM supplies a valid one) come from the model.
+`run()` computes everything above in code first, then sends the questions, monitor list, risk-judge output, mechanical score, and both adjustments (already applied to the thresholds shown to the model) to the LLM, and asks for exactly three things: (1) a `rationale_quality_score`/`rationale_quality_notes` grade for each sub-question's reasoning, (2) a bounded `adjustment_delta` (±0.30) with `score_adjustment_rationale`, and (3) a `recommendation` with `decision_rationale`. The prompt gives the model the mechanical score, `conviction`, `M`, the asymmetry-shifted thresholds, and the `final_score` formula, and tells it to judge Buy/Sell/Hold against `final_score` (and to Pass below the evidence floor `_M_FLOOR`) rather than re-deriving any of it. `adjusted_score = clamp(mechanical_score + clamp_adjustment(delta), -1, 1)`; `final_score = adjusted_score × conviction`. Nothing about `mechanical_score`, `conviction`, `upside_impact`, `downside_impact`, or the threshold values is LLM-computed — only `adjusted_score`'s *delta* and the final label (when the LLM supplies a valid one) come from the model.
 
 ---
 
