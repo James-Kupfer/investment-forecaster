@@ -42,7 +42,7 @@ class RiskJudgeAgent(BaseAgent):
                     f"Macro environment: {macro_summary}\n"
                     f"Drawdown threshold: {drawdown_threshold if drawdown_threshold is not None else 'not specified'}\n"
                     f"Near-term Critical/High question count (from decomposition, "
-                    f"including any pushed to the monitor list by the 7-question cap): "
+                    f"including any pushed to the monitor list by the 20-question cap): "
                     f"{nearterm_critical_high_count if nearterm_critical_high_count is not None else 'not specified'}\n"
                     f"Business: {business or 'not specified'}\n"
                     f"Competitive landscape: {competitive_landscape or 'not specified'}\n"

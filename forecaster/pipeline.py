@@ -10,7 +10,7 @@ C:\\Users\\james\\.claude\\plans\\i-updated-the-list-wise-pnueli.md):
   B. Symbol context (once)   — MacroQ, RiskJudge, Earnings, PrimarySource,
                                 Momentum/Trend/Volume/TechnicalJudge
   C. Per-question forecast   — Elicitation -> Review -> ConfidenceJudge,
-     (N <= 7 times)            fanned out in parallel across sub-questions
+     (N <= 20 times)            fanned out in parallel across sub-questions
   D. Aggregate (once)        — AggregationAgent
 """
 from __future__ import annotations

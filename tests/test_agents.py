@@ -509,24 +509,25 @@ class TestAggregationAgent:
 
 
 class TestComputeAsymmetryAdjustment:
-    """James's point: a stock that can move 10x in a year justifies accepting
-    more mechanical-score risk. asymmetric_rating is the investment-profile
-    skill's own categorical field (High/Medium/Low/No -- plausible ~1-year
-    return path: High=10x, Medium>=5x, Low>=1x, else No), not a boolean."""
+    """A stock that can plausibly multibag justifies accepting more
+    mechanical-score risk. asymmetric_rating is the investment-profile skill's
+    own categorical field (High/Medium/Low/No -- plausible ~1-year return path
+    as an Nx return: High=5x, Medium=2x, Low=1x/a double, else No). The
+    adjustment is proportional to the return multiple, max 0.25 at High (5x)."""
 
     def test_high_rating_hits_max_adjustment(self):
         from forecaster.agents.aggregation import AggregationAgent
-        assert AggregationAgent.compute_asymmetry_adjustment("High") == 0.20
+        assert AggregationAgent.compute_asymmetry_adjustment("High") == 0.25
 
-    def test_medium_rating_is_half_of_high(self):
+    def test_medium_rating_is_proportional(self):
         from forecaster.agents.aggregation import AggregationAgent
-        # Medium floor is 5x vs High's 10x reference -> half the max adjustment
+        # Medium floor is 2x vs High's 5x reference -> 2/5 of the max adjustment
         assert AggregationAgent.compute_asymmetry_adjustment("Medium") == pytest.approx(0.10)
 
-    def test_low_rating_is_small(self):
+    def test_low_rating_is_proportional(self):
         from forecaster.agents.aggregation import AggregationAgent
-        # Low floor is 1x vs High's 10x reference -> a tenth of the max adjustment
-        assert AggregationAgent.compute_asymmetry_adjustment("Low") == pytest.approx(0.02)
+        # Low floor is 1x vs High's 5x reference -> 1/5 of the max adjustment
+        assert AggregationAgent.compute_asymmetry_adjustment("Low") == pytest.approx(0.05)
 
     def test_no_rating_yields_zero(self):
         from forecaster.agents.aggregation import AggregationAgent
@@ -541,54 +542,65 @@ class TestComputeAsymmetryAdjustment:
 
     def test_rating_is_case_insensitive(self):
         from forecaster.agents.aggregation import AggregationAgent
-        assert AggregationAgent.compute_asymmetry_adjustment("high") == 0.20
-        assert AggregationAgent.compute_asymmetry_adjustment(" HIGH ") == 0.20
+        assert AggregationAgent.compute_asymmetry_adjustment("high") == 0.25
+        assert AggregationAgent.compute_asymmetry_adjustment(" HIGH ") == 0.25
 
 
-class TestComputeLowNAdjustment:
-    """compute_mechanical_score pins the score to +/-1 whenever every scored
-    question lands on the same side of the ledger (guaranteed at n=1) --
-    compute_low_n_adjustment widens buy/sell thresholds toward hold as
-    scored_count drops below the full-decomposition count (4), tapering to
-    zero at and above it."""
+class TestConviction:
+    """The decision score scales the normalized tilt by a saturating conviction
+    multiplier, conviction = 1 - exp(-M/k) with M = total weighted evidence, so a
+    thin ledger attenuates toward hold instead of pinning the decision to +/-1.
+    Below M_FLOOR the position is Pass (insufficient signal). Replaces the old
+    low-n threshold widening."""
 
-    def test_single_question_hits_max_adjustment(self):
+    def test_zero_evidence_is_zero_conviction(self):
         from forecaster.agents.aggregation import AggregationAgent
-        assert AggregationAgent.compute_low_n_adjustment(1) == 0.20
+        assert AggregationAgent.compute_conviction(0.0) == 0.0
+        assert AggregationAgent.compute_conviction(-1.0) == 0.0
 
-    def test_two_questions_is_two_thirds_of_max(self):
+    def test_conviction_saturates_toward_one(self):
         from forecaster.agents.aggregation import AggregationAgent
-        assert AggregationAgent.compute_low_n_adjustment(2) == pytest.approx(0.1333, abs=1e-4)
+        # 1 - exp(-M/7): M=7 -> 1 - 1/e ~ 0.632; grows toward but never reaches 1.
+        assert AggregationAgent.compute_conviction(7.0) == pytest.approx(0.6321, abs=1e-4)
+        assert 0.99 < AggregationAgent.compute_conviction(100.0) <= 1.0
 
-    def test_three_questions_is_one_third_of_max(self):
+    def test_conviction_is_monotonic_and_bounded(self):
         from forecaster.agents.aggregation import AggregationAgent
-        assert AggregationAgent.compute_low_n_adjustment(3) == pytest.approx(0.0667, abs=1e-4)
+        low = AggregationAgent.compute_conviction(2.0)
+        high = AggregationAgent.compute_conviction(12.0)
+        assert 0.0 < low < high < 1.0
 
-    def test_full_count_and_above_yields_zero(self):
+    def test_bounded_multiplier_beats_raw_magnitude_on_comparability(self):
+        """Two equally-strong-per-question ledgers differing only in question
+        count (M=6 vs M=4) should not diverge the way raw magnitude (6 vs 4)
+        would -- conviction compresses both into a bounded, comparable range."""
         from forecaster.agents.aggregation import AggregationAgent
-        assert AggregationAgent.compute_low_n_adjustment(4) == 0.0
-        assert AggregationAgent.compute_low_n_adjustment(7) == 0.0
+        c6 = AggregationAgent.compute_conviction(6.0)
+        c4 = AggregationAgent.compute_conviction(4.0)
+        assert c6 < 1.0 and c4 < 1.0
+        assert (c6 - c4) < (6.0 - 4.0)   # compressed, not a linear 2.0 gap
 
-    def test_zero_questions_yields_zero(self):
-        """An empty scored set is handled by derive_recommendation's 'pass'
-        path, not a floored buy/sell -- no threshold widening needed."""
+    def test_below_floor_is_pass_regardless_of_tilt(self):
+        """A lone low-probability catalyst pins mechanical_score to +1.0, but
+        total evidence below M_FLOOR is insufficient to act -> Pass, even over
+        a valid LLM 'Buy'."""
         from forecaster.agents.aggregation import AggregationAgent
-        assert AggregationAgent.compute_low_n_adjustment(0) == 0.0
-
-    def test_widened_thresholds_flip_a_low_n_floored_score_to_hold(self):
-        """The scenario that motivated this: a single risk question floors
-        mechanical_score to -1.0 regardless of its probability. The base
-        -0.35 sell threshold would trigger sell; the n=1 widened threshold
-        should not."""
-        from forecaster.agents.aggregation import AggregationAgent
-        questions = [{"final_probability": 0.08, "impact_magnitude": "critical", "impact_direction": "-"}]
-        score, upside, downside, ratio, scored_count = AggregationAgent.compute_mechanical_score(questions)
-        assert score == -1.0
-        low_n_adjustment = AggregationAgent.compute_low_n_adjustment(scored_count)
-        sell_threshold = -0.35 - low_n_adjustment
+        questions = [{"final_probability": 0.05, "impact_magnitude": "high", "impact_direction": "+"}]
+        score, upside, downside, ratio, n = AggregationAgent.compute_mechanical_score(questions)
+        assert score == 1.0
+        total_evidence = upside + downside          # 0.05 * 3 = 0.15, below M_FLOOR (1.0)
         assert AggregationAgent.derive_recommendation(
-            questions, score, None, sell_threshold=sell_threshold
-        ) == "Sell"  # still floored past even the widened threshold -- signal isn't discarded
+            questions, 1.0, "Buy", total_evidence=total_evidence
+        ) == "Pass"
+
+    def test_above_floor_uses_normal_path(self):
+        from forecaster.agents.aggregation import AggregationAgent
+        questions = [{"final_probability": 0.5, "impact_magnitude": "critical", "impact_direction": "+"}]
+        _, upside, downside, _, _ = AggregationAgent.compute_mechanical_score(questions)
+        total_evidence = upside + downside          # 0.5 * 4 = 2.0, above M_FLOOR
+        assert AggregationAgent.derive_recommendation(
+            questions, 0.5, "Buy", total_evidence=total_evidence
+        ) == "Buy"
 
 
 # ---------------------------------------------------------------------------
