@@ -214,15 +214,15 @@ class TestQuestionDefinitionAgent:
         resp.content = []
         assert agent._parse_response(resp) == {}
 
-    def test_cap_questions_enforces_max_seven(self):
+    def test_cap_questions_enforces_max_twenty(self):
         from forecaster.agents.question_definition import QuestionDefinitionAgent
-        nine_questions = [{"question_text": f"Q{i}"} for i in range(9)]
+        twenty_five_questions = [{"question_text": f"Q{i}"} for i in range(25)]
         output = QuestionDefinitionAgent.cap_questions({
-            "questions": nine_questions,
+            "questions": twenty_five_questions,
             "monitor_list": [],
-            "nearterm_critical_high_count": 9,
+            "nearterm_critical_high_count": 25,
         })
-        assert len(output["questions"]) == 7
+        assert len(output["questions"]) == 20
         assert output["questions"][0]["question_text"] == "Q0"
 
     def test_cap_questions_under_limit_unchanged(self):
@@ -440,18 +440,34 @@ class TestAggregationAgent:
         assert ratio is None
         assert scored_count == 0
 
-    def test_mechanical_score_ignores_medium_low_magnitude(self):
-        """Only high/critical carry a severity weight — medium/low should
-        never reach aggregation (decomposition filters them), but the
-        formula itself must not silently count them if one slips through."""
+    def test_mechanical_score_weighs_medium_low_at_reduced_severity(self):
+        """medium/low DO carry a (smaller) severity weight -- the broadened
+        risk-admission gate (Impact-High OR Likelihood-High) can legitimately
+        admit a medium- or low-impact risk (e.g. a Likelihood-High/Impact-Low
+        FX drag), and the weight ladder is what sizes its contribution down
+        rather than excluding it or over-counting it as high."""
         from forecaster.agents.aggregation import AggregationAgent
         questions = [
             {"final_probability": 0.9, "impact_magnitude": "medium", "impact_direction": "+"},
         ]
         score, upside, downside, ratio, scored_count = AggregationAgent.compute_mechanical_score(questions)
+        assert upside == 0.9 * 2  # medium weight = 2
+        assert score == 1.0
+        assert scored_count == 1
+
+    def test_mechanical_score_unrecognized_magnitude_is_excluded(self):
+        """An unrecognized/missing impact_magnitude has no entry in the
+        weight ladder and must not silently contribute -- this is the actual
+        never-reaches-aggregation guard now that medium/low are legitimate
+        weighted tiers."""
+        from forecaster.agents.aggregation import AggregationAgent
+        questions = [
+            {"final_probability": 0.9, "impact_magnitude": "unscored", "impact_direction": "+"},
+        ]
+        score, upside, downside, ratio, scored_count = AggregationAgent.compute_mechanical_score(questions)
         assert upside == 0.0
         assert score == 0.0
-        assert scored_count == 0  # medium magnitude never contributes a weight
+        assert scored_count == 0
 
     def test_clamp_adjustment_bounds_large_positive(self):
         from forecaster.agents.aggregation import AggregationAgent

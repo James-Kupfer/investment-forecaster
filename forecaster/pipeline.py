@@ -73,6 +73,13 @@ class ForecastPipeline:
         """
         from forecaster.agents.triage import TriageAgent
 
+        # Normalize once, up front -- forecasts.symbol is written from this
+        # value, so a lowercase/mixed-case caller would otherwise permanently
+        # store a differently-cased row than positions.symbol's uppercase
+        # convention, breaking every later exact-match lookup against it
+        # (including _get_prior_adjusted_score two lines down).
+        symbol = symbol.strip().upper()
+
         # Step 1 - triage gate (gates on prior adjusted_score magnitude, not
         # the retired v1 compound_conviction)
         prior_adjusted_score = self._get_prior_adjusted_score(symbol)
@@ -518,6 +525,13 @@ class ForecastPipeline:
     _RATIONALE_RATING_RE = re.compile(r"^(High|Medium|Low)\b", re.IGNORECASE)
 
     def _get_position_context(self, symbol: str) -> dict:
+        # positions.symbol is stored uppercase ("MCO", "MSI LSE") and this is
+        # an exact-match query -- a lowercase/mixed-case caller (observed live
+        # via scripts/run_single_prompt.py with a lowercased symbol) silently
+        # matches zero rows and falls through to the near-empty {"thesis": ""}
+        # fallback below, reproducing the same hollow-decomposition symptom
+        # the MCO timing bug had, but from a data-entry mismatch instead.
+        symbol = symbol.strip().upper()
         cols = [
             "investment_thesis", "risks", "business", "competitive_landscape", "financials",
             "hold_period", "hold_period_rationale", "name", "label", "type", "asymmetric_rating",
