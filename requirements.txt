@@ -5,6 +5,4 @@ requests
 yfinance
 pytest
 tomli; python_version < "3.11"  # tomllib is stdlib on 3.11+; config.toml parsing needs this backport below that
-# TA-Lib requires the C library pre-installed.
-# Windows wheel: https://github.com/cgohlke/talib-build/releases
-# ta-lib
+ta-lib

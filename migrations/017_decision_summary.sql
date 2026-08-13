@@ -1,0 +1,18 @@
+-- Plain-English sibling to decision_rationale. decision_rationale is deliberately technical
+-- (mechanical_score, invq2_floor, conviction, question indices by name) because it's the audit
+-- trail behind the two numeric scores that get independently Brier-scored for calibration review --
+-- not something to water down. decision_summary is additive, not a replacement: a few paragraphs of
+-- investment commentary written for an experienced investor who has no visibility into this
+-- system's internal scoring machinery, translating the same finished call for that reader. Written
+-- by the same AggregationAgent call as decision_rationale (see personas/aggregation.md v2.72 and
+-- AGGREGATION_SCHEMA in forecaster/agents/aggregation.py) -- no separate API call, no extra cost.
+--
+-- TEXT, unbounded, same as decision_rationale -- a few paragraphs is not a sizing concern for the
+-- column.
+--
+-- Deliberately NOT backfilled: unlike total_evidence/conviction/final_score (016), decision_summary
+-- cannot be reconstructed from other already-persisted columns -- writing it for existing rows would
+-- mean a fresh LLM call per historical forecast, i.e. real spend, which was explicitly deferred.
+-- Every row written before this migration stays NULL until that position's forecast is naturally
+-- re-run through the normal pipeline.
+ALTER TABLE forecasts ADD COLUMN IF NOT EXISTS decision_summary TEXT;

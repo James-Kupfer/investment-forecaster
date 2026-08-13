@@ -14,9 +14,9 @@ from forecaster.db import db_cursor
 _PRICING: dict[str, tuple[float, float, float]] = {
     'claude-sonnet-5':            (3.00, 15.00, 0.30),
     'claude-haiku-4-5-20251001':  (1.00,  5.00, 0.10),
-    # Opus 4.8: $5 in / $25 out per MTok (was previously entered as $15/$75 —
+    # Opus 5: $5 in / $25 out per MTok (was previously entered as $15/$75 —
     # ~3x too high, which overstated every logged Opus call cost).
-    'claude-opus-4-8':            (5.00, 25.00, 0.50),
+    'claude-opus-5':              (5.00, 25.00, 0.50),
 }
 
 

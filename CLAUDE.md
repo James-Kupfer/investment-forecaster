@@ -16,6 +16,21 @@ LLM Superforecaster — applies Tetlock superforecaster discipline to investment
   score. Both are stored (`mechanical_score` vs `adjusted_score`) so calibration review can tell
   which one was right. See `architecture.md#aggregation--from-score-to-recommendation` for the
   exact formulas before touching this file.
+- **`forecasts.recommendation_band` is derived from `recommendation`, never from `final_score`**
+  (`aggregation.py`'s `derive_recommendation_band`). It is a deterministic display refinement —
+  Strong Buy / Buy / Hold / Sell / Strong Sell / Pass — that splits only Buy and Sell by how far
+  `final_score` cleared the effective threshold. It must stay *subordinate*: `derive_recommendation`
+  returns the LLM's own label verbatim when valid, so the stored call and the score can legitimately
+  disagree (forecast 30/FNV: the model answered HOLD on a score that cleared the buy bar). Banding
+  off `final_score` directly would contradict the stored recommendation on exactly those rows. A NULL
+  `recommendation` must yield a NULL band, and `Hold`/`Pass` are never split.
+- **`forecasts.decision_summary` is additive to `decision_rationale`, never a replacement.**
+  `decision_rationale` is deliberately technical (mechanical_score, invq2_floor, conviction, question
+  indices by name) because it's the audit trail behind the two numeric scores that get independently
+  Brier-scored for calibration review — don't "simplify" it. `decision_summary` is a separate field,
+  written by the same `AggregationAgent` call, translating the finished call into a few paragraphs
+  for an experienced investor with no visibility into this system's internals. It must never cause
+  `decision_rationale` to be shortened, omitted, or contradicted.
 - **`positions.asymmetric_rating` (High/Medium/Low/No) is the only source for the asymmetry
   adjustment** — it supersedes the old `is_asymmetric` BOOLEAN column, whose boolean coercion in
   the portfolio-manager's `excel_sync.py` had been silently collapsing every real rating (including

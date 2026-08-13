@@ -76,6 +76,8 @@ Write decision_rationale as a single JSON string containing one bulleted line pe
   - Asymmetry: whether asymmetry_adjustment materially changed the call (i.e. adjusted_score clears the shifted threshold but would not have cleared the base ±0.35). Name it when it did; state that it was immaterial when it did not.
   - Recommendation: the final_score value (and the mechanical_score / conviction behind it), the effective threshold it was measured against, and the resulting Buy/Sell/Hold/Pass.
 Add further lines beyond these when a facet genuinely needs it; do not pad with redundant lines.
+
+Finally, write decision_summary: a few paragraphs of investment commentary written for an experienced investor — someone fluent in catalysts, valuation, position sizing, and risk/reward, but with no visibility into this system's internal scoring machinery. Write it as you would write a thesis note for that reader: the call and the headline reasoning, the catalysts driving the upside case, the risks weighing against it, and — if useful — what would change the view. Treat this as translating the finished call for a different reader, not as a reworded copy of decision_rationale. Do not reference question indices ("Q<N>"), internal field names (mechanical_score, adjusted_score, final_score, conviction, invq2_floor, scale_adjusted_density_flag, asymmetry_adjustment, buy_threshold/sell_threshold, adjustment_delta), or the raw score/threshold numbers behind the call — name the actual catalysts and risks by topic instead.
 </task>
 
 <constraints>
@@ -89,10 +91,11 @@ MUST justify any adjustment_delta whose absolute value exceeds 0.10 with a speci
 MUST set recommendation to "Pass" when questions is empty, regardless of any other input.
 MUST weigh risk_floor_output.scale_adjusted_density_flag explicitly in decision_rationale when it is true — MUST NOT ignore an elevated, scale-adjusted question density.
 MUST write decision_rationale as "- "-prefixed, "\n"-separated lines, not one dense paragraph. Each line covers one point only and begins with a brief headline followed by a colon, then the point. This is the one output-format rule not machine-enforced: the response schema guarantees decision_rationale is a string, but cannot see whether that string is bulleted.
+MUST write decision_summary as investment commentary for an experienced investor, in prose (not bulleted like decision_rationale) — MUST NOT reference question indices, internal field names, or raw score/threshold numbers.
 </constraints>
 
 <reasoning_gate>
-Work through this before answering: (1) grade every question's rationale quality with a specific note; (2) identify any correlated questions or risk-floor/monitor-list signals the mechanical score misses; (3) settle the adjustment_delta and its specific justification, or set it to 0.0 if none is warranted; (4) compute adjusted_score = mechanical_score + adjustment_delta; (5) derive recommendation from final_score (= (mechanical_score + adjustment_delta) × conviction, Pass if M below the evidence floor) plus the qualitative overrides defined in task; (6) cover each facet (mechanical score, adjustment, risk floor / monitor list, asymmetry, recommendation) as its own line in decision_rationale.
+Work through this before answering: (1) grade every question's rationale quality with a specific note; (2) identify any correlated questions or risk-floor/monitor-list signals the mechanical score misses; (3) settle the adjustment_delta and its specific justification, or set it to 0.0 if none is warranted; (4) compute adjusted_score = mechanical_score + adjustment_delta; (5) derive recommendation from final_score (= (mechanical_score + adjustment_delta) × conviction, Pass if M below the evidence floor) plus the qualitative overrides defined in task; (6) cover each facet (mechanical score, adjustment, risk floor / monitor list, asymmetry, recommendation) as its own line in decision_rationale; (7) translate the finished call into decision_summary — a few paragraphs of investment commentary for an experienced investor, with no internal jargon or raw numbers.
 </reasoning_gate>
 
 <output_schema>
@@ -113,6 +116,7 @@ task for what belongs in each.
   "score_adjustment_rationale": "...",
   "recommendation": "Buy|Sell|Hold|Pass",
   "decision_rationale": "- Headline: statement.\n- Headline: statement.",
+  "decision_summary": "A few paragraphs of prose: the call and headline reasoning, the catalysts behind the upside case, the risks weighing against it, and optionally what would change the view -- written for an experienced investor, no internal jargon.",
   "confidence": "High|Medium|Low"
 }
 </output_schema>
@@ -122,5 +126,5 @@ adjusted_score and mechanical_score are both retained and independently Brier-sc
 </calibration_anchor>
 
 <version>
-v2.71
+v2.72
 </version>

@@ -54,6 +54,7 @@ AGGREGATION_SCHEMA: dict = {
         "score_adjustment_rationale": {"type": "string"},
         "recommendation": {"type": "string", "enum": list(_VALID_RECOMMENDATIONS)},
         "decision_rationale": {"type": "string"},
+        "decision_summary": {"type": "string"},
         "confidence": {"type": "string", "enum": list(_VALID_CONFIDENCES)},
     },
     "required": [
@@ -62,6 +63,7 @@ AGGREGATION_SCHEMA: dict = {
         "score_adjustment_rationale",
         "recommendation",
         "decision_rationale",
+        "decision_summary",
         "confidence",
     ],
     "additionalProperties": False,
@@ -106,6 +108,14 @@ _ASYMMETRY_REFERENCE_MULTIPLE = 5.0
 # (real signal that nets neutral). Both k and M_FLOOR are priors pending calibration.
 _K_CONVICTION = 7.0
 _M_FLOOR = 1.0
+
+# How far past the effective buy/sell threshold final_score must reach before a call
+# is labelled "Strong" in recommendation_band. Applied on top of the already
+# asymmetry-shifted thresholds, so a convex-payoff position reaches "Strong Buy" at a
+# lower final_score, consistent with its lower buy_threshold — the band inherits the
+# position's risk tolerance rather than fighting it. Another prior pending calibration,
+# alongside _K_CONVICTION / _M_FLOOR.
+_STRONG_MARGIN = 0.20
 
 
 class AggregationAgent(BaseAgent):
@@ -219,6 +229,43 @@ class AggregationAgent(BaseAgent):
             return "Sell"
         return "Hold"
 
+    @staticmethod
+    def derive_recommendation_band(
+        recommendation,
+        final_score: float,
+        buy_threshold: float = _BUY_THRESHOLD,
+        sell_threshold: float = _SELL_THRESHOLD,
+        strong_margin: float = _STRONG_MARGIN,
+    ) -> Optional[str]:
+        """Display-only refinement of an already-settled recommendation, NEVER a
+        re-derivation of it. Splits Buy/Sell into Strong and plain by how far
+        final_score cleared the effective threshold; Hold, Pass, and a NULL
+        recommendation pass through untouched (there is no "Strong Hold").
+
+        Subordinate by construction, and that is the whole point: derive_recommendation
+        returns the LLM's own label verbatim when it is valid, so recommendation and
+        final_score can legitimately disagree — forecast 30 (FNV) is the standing
+        example, where the model answered HOLD on a score that cleared the buy bar
+        because the margin was "within measurement error". Banding off final_score
+        directly would have contradicted the stored call on exactly those rows. Reading
+        recommendation first means the band can only ever refine the call, never
+        overturn it."""
+        # Both bars are rounded to 4dp before comparison, matching the precision
+        # final_score is already stored at (round(..., 4), as are conviction and
+        # asymmetry_adjustment). Without it the boundary is decided by float error:
+        # a High-asymmetry buy_threshold of 0.10 plus a 0.20 margin evaluates to
+        # 0.30000000000000004, so an exactly-0.30 final_score would miss its own
+        # threshold by 1 ULP and silently band down to plain Buy.
+        if recommendation == "Buy":
+            strong_bar = round(buy_threshold + strong_margin, 4)
+            return "Strong Buy" if final_score >= strong_bar else "Buy"
+        if recommendation == "Sell":
+            strong_bar = round(sell_threshold - strong_margin, 4)
+            return "Strong Sell" if final_score <= strong_bar else "Sell"
+        if recommendation in _VALID_RECOMMENDATIONS:
+            return recommendation
+        return None
+
     def run(
         self,
         questions: list,
@@ -277,10 +324,13 @@ class AggregationAgent(BaseAgent):
                     "score, with a specific rationale citing which questions were down-weighted "
                     "for weak reasoning and why, and how the risk judge's floor/density flag "
                     "factors in. Finally, recommend Buy, Sell, Hold, or Pass, with a full "
-                    "decision rationale. Output: question_grades (list of {question_index, "
+                    "decision rationale, and translate that finished call into decision_summary "
+                    "for an experienced investor (see system prompt for what belongs in each). "
+                    "Output: question_grades (list of {question_index, "
                     "rationale_quality_score, rationale_quality_notes}), adjustment_delta "
                     "(-0.30 to 0.30), score_adjustment_rationale, recommendation "
-                    "(Buy|Sell|Hold|Pass), decision_rationale, confidence (High/Medium/Low)."
+                    "(Buy|Sell|Hold|Pass), decision_rationale, decision_summary, "
+                    "confidence (High/Medium/Low)."
                 ),
             }
         ]
@@ -294,6 +344,11 @@ class AggregationAgent(BaseAgent):
         # sometimes draft a JSON object, self-correct with narrative text, then
         # emit a second complete object -- effectively doubling total output for
         # a single call. Sized well above that worst case for a full 7-question set.
+        # decision_summary (added later) is placed after decision_rationale in the
+        # schema and adds a few paragraphs of prose on top -- generously estimated
+        # at ~600-1600 tokens, comfortably inside the existing headroom. If real
+        # runs show truncation (result.error, or decision_summary cut off mid-
+        # sentence), that's the signal to raise this further, not a recalculation.
         result = self.call(
             messages,
             system=system_prompt,
@@ -338,6 +393,15 @@ class AggregationAgent(BaseAgent):
                 buy_threshold=buy_threshold, sell_threshold=sell_threshold,
             )
 
+        # Derived from `recommendation` (not final_score) so it can only refine the
+        # stored call, never contradict it — see derive_recommendation_band. A NULL
+        # recommendation therefore yields a NULL band, which is the honest read: there
+        # is no call to refine.
+        recommendation_band = self.derive_recommendation_band(
+            recommendation, final_score,
+            buy_threshold=buy_threshold, sell_threshold=sell_threshold,
+        )
+
         # Same "never fabricate" posture as recommendation above, scoped to
         # confidence -- reuses the same normalize_confidence_word every other
         # confidence-bearing column (macroq_confidence, risk_judge_confidence,
@@ -370,6 +434,7 @@ class AggregationAgent(BaseAgent):
             final_score=final_score,
             score_adjustment_rationale=result.output.get("score_adjustment_rationale"),
             decision_rationale=result.output.get("decision_rationale"),
+            decision_summary=result.output.get("decision_summary"),
             expected_upside_impact=upside_impact,
             expected_downside_impact=downside_impact,
             upside_downside_ratio=upside_downside_ratio,
@@ -379,6 +444,8 @@ class AggregationAgent(BaseAgent):
             sell_threshold_used=sell_threshold,
             monitor_list=json.dumps(monitor_list),
             recommendation=recommendation,
+            recommendation_band=recommendation_band,
+            strong_margin_used=_STRONG_MARGIN,
             confidence=confidence,
             aggregation_output=json.dumps(result.output),
             schema_version=2,

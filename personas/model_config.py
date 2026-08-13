@@ -18,7 +18,7 @@ AGENT_MODELS: dict[str, str] = {
  # Extracts up to 7 Critical/High-impact catalyst/risk sub-questions (each
  # resolvable within 12 months) from the position's thesis and risk
  # profile. Does not classify long/short — stance is an aggregation output.
- "question_definition": "claude-opus-4-8",
+ "question_definition": "claude-opus-5",
 
  # --- Stage B: shared symbol-level evidence (once) ---
  # Macro analyst: builds a decision tree from VIX, DXY, rates, and sector
@@ -58,7 +58,7 @@ AGENT_MODELS: dict[str, str] = {
  # --- Stage C: per-sub-question forecast (N <= 7, fanned out in parallel) ---
  # Superforecaster: forecasts ONE sub-question via inside view, outside
  # view, pre-mortem, reference class. Runs once per surviving sub-question.
- "elicitation": "claude-opus-4-8",
+ "elicitation": "claude-opus-5",
 
  # Bias reviewer: devil's-advocate critique of one sub-question's
  # elicitation, scoped to that question only — never the whole thesis.
@@ -72,5 +72,5 @@ AGENT_MODELS: dict[str, str] = {
  # Final decision agent: grades each sub-question's rationale quality,
  # proposes a bounded (+/-0.30) adjustment to the code-computed mechanical
  # expected-value score, and issues the buy/sell/hold/pass recommendation.
- "aggregation": "claude-opus-4-8",
+ "aggregation": "claude-opus-5",
 }

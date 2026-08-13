@@ -147,7 +147,7 @@ class QuestionDefinitionAgent(BaseAgent):
                 ),
             }
         ]
-        # Extended thinking (used by claude-sonnet-5/claude-opus-4-8) counts
+        # Extended thinking (used by claude-sonnet-5/claude-opus-5) counts
         # against max_tokens with no separate thinking budget, so this needs
         # more headroom than a non-thinking model would -- set generously above
         # any observed usage (this agent is now on Opus).

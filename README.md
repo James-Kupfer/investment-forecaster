@@ -83,6 +83,8 @@ The buy/sell thresholds shift for one reason — **risk/reward asymmetry**: a mo
 
 **Thin decompositions** are handled on the *score* side instead of the threshold: a position with few scorable sub-questions has its mechanical score mathematically pinned toward ±1 (a single question's probability can't affect anything but which side it lands on), so the conviction multiplier above shrinks `final_score` toward `hold` as total evidence drops — and below an evidence floor the position is `Pass` outright rather than acted on at a pinned score.
 
+Alongside the four-way `recommendation`, a **`recommendation_band`** gives a finer display label — **Strong Buy / Buy / Hold / Sell / Strong Sell / Pass** — by splitting Buy and Sell on how far `final_score` cleared the position's effective threshold. It is deterministic presentation only: it refines the recommendation that was already made rather than re-deriving one, so it can never contradict the stored call, and `Hold`/`Pass` are never split. No part of it is LLM-computed.
+
 ### Resolution: what gets auto-checked, and what doesn't
 
 `run_resolution.py` runs after a sub-question's `resolution_date` passes. Sub-questions with `resolution_source = price` (a specific price level) resolve automatically against real historical prices. Sub-questions anchored to a specific reported number (`resolution_source = filing` — an actual EPS beat, a guidance figure, an insider-buying threshold) forecast *more* accurately than a generic price bet, precisely because they're concrete — but they can't be auto-resolved from a price feed. Those are logged as "needs manual resolution," not silently skipped or guessed at. There's currently no UI or script that closes that loop for you; resolving a filing-anchored question means reading the filing and updating the row by hand.
@@ -167,6 +169,49 @@ python scripts/run_forecasts.py                         # every active position 
 python scripts/run_forecasts.py --symbol AAPL --force    # bypass the triage gate for this symbol
 python scripts/run_macroq.py                             # macro regime snapshot only (no position needed)
 python scripts/run_resolution.py                         # resolve past-due forecasts, score, update agent_weights
+```
+
+### Reading results back out
+
+Results land in Postgres and stay there — there is no export or report script. Query
+`investment_forecaster` directly.
+
+**The call and its rationale.** Two different-register fields cover this. `decision_summary` is the
+plain-English read, meant to stand alone: a few paragraphs of investment commentary — the call, the
+catalysts behind it, the risks weighing against it — written for an experienced investor with no
+familiarity with this system's internals. `decision_rationale` is the technical audit trail behind
+it: one bulleted line per facet (what drove the mechanical score, what the LLM adjusted and why, how
+the risk floor and monitor list factored in, whether asymmetry changed the call, and the final
+recommendation), retained for calibration review. `decision_summary` only exists on forecasts run
+after it was added — older rows have it `NULL` and weren't backfilled (translating old rationale
+into plain English would mean a fresh LLM call per historical row, deferred as a cost decision).
+`recommendation IS NOT NULL` filters out runs that crashed or degraded before producing a call.
+
+```sql
+SELECT symbol, forecast_date, recommendation, recommendation_band, confidence,
+       mechanical_score, adjusted_score, conviction, final_score,
+       buy_threshold_used, sell_threshold_used,
+       decision_summary, score_adjustment_rationale, decision_rationale
+FROM forecasts
+WHERE symbol = 'AAPL' AND recommendation IS NOT NULL
+ORDER BY created_at DESC
+LIMIT 1;
+```
+
+**The sub-question forecasts behind it.** Up to seven catalyst/risk questions per run, each with a
+calibrated `final_probability` and the aggregation agent's grade of how well-reasoned it was:
+
+```sql
+SELECT q.question_type, q.impact_direction, q.impact_magnitude,
+       q.question_text, q.resolution_date,
+       q.final_probability, q.confidence, q.forecast_rationale,
+       q.rationale_quality_score, q.rationale_quality_notes
+FROM forecast_questions q
+JOIN forecasts f ON f.id = q.forecast_id
+WHERE f.id = (SELECT id FROM forecasts
+              WHERE symbol = 'AAPL' AND recommendation IS NOT NULL
+              ORDER BY created_at DESC LIMIT 1)
+ORDER BY q.id;
 ```
 
 ---

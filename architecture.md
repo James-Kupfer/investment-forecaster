@@ -4,6 +4,8 @@ Deep technical reference: full database schema, every agent's inputs/outputs, an
 
 This is the **v2 (decomposition) pipeline**. An earlier v1 design forecast a single upside/downside pair per position (`invq1`/`invq2`/`invq3` columns); it was retired in favor of decomposing each thesis into several independently-scored sub-questions. The v1 columns and the `run_resolution.py` legacy pass that resolved them have been dropped entirely (migration 011) — there is no historical v1 data left in this database.
 
+This file describes the current state only. For how it got here — one entry per notable change, cross-referenced to the migration that made it — see [`CHANGELOG.md`](CHANGELOG.md).
+
 ---
 
 ## Repository Layout
@@ -15,9 +17,16 @@ investment-forecaster/
 │   ├── 002-007_*.sql                   # No-ops — merged into 001 during the SQL Server -> Postgres port
 │   ├── 008_decomposition_pipeline.sql  # forecast_questions table + v2 forecasts columns
 │   ├── 009_asymmetry_adjustment.sql    # asymmetry_adjustment / buy_threshold_used / sell_threshold_used
-│   └── 010_low_n_adjustment.sql        # question_count / low_n_adjustment
+│   ├── 010_low_n_adjustment.sql        # question_count / low_n_adjustment (latter dropped by 014)
+│   ├── 011_drop_legacy_v1_columns.sql  # Removes the pre-decomposition v1 forecasts columns
+│   ├── 012_forecast_questions_stage_outputs.sql  # elicitation_output / review_output split
+│   ├── 013_forecast_confidence_column.sql        # forecasts.confidence + Proper Case backfill
+│   ├── 014_conviction_scoring.sql      # total_evidence / conviction / final_score
+│   ├── 015_recommendation_band.sql     # recommendation_band / strong_margin_used
+│   ├── 016_backfill_conviction_scoring.sql  # Backfills 014's columns for pre-014 rows + their band
+│   └── 017_decision_summary.sql        # decision_summary (plain-English sibling to decision_rationale)
 ├── setup/
-│   ├── create_schema_postgres.sql      # Full current schema in one file (used by setup.ps1)
+│   ├── create_schema_postgres.sql      # Bootstrap only — STALE (see note below), superseded by migrations/
 │   ├── setup.ps1                       # Creates DBs, applies schema, installs deps, seeds prompts
 │   └── install-runner.ps1              # Installs the self-hosted GitHub Actions runner
 ├── forecaster/
@@ -79,7 +88,9 @@ Each agent also has a companion `.md` file in `personas/` containing its prompt 
 
 **Host:** `localhost:5432` (default) · **Database:** `investment_forecaster` · **Auth:** `DB_USER`/`DB_PASSWORD` loaded from the shared `Secrets` folder by `forecaster/credentials.py` (never `.env` — see [`CLAUDE.md`](CLAUDE.md)).
 
-The schema below reflects the state after all of `migrations/001` through `010` are applied (`setup/create_schema_postgres.sql` is an equivalent flattened copy).
+The schema below reflects the state after all of `migrations/001` through `017` are applied. **`setup/create_schema_postgres.sql` is not an equivalent copy** — it was last regenerated at 009 and is missing everything 010/012/013/014/015 added (`question_count`, `elicitation_output`/`review_output`, `confidence`, `total_evidence`/`conviction`/`final_score`, `recommendation_band`/`strong_margin_used`). Nothing reads it at runtime or in tests; it is a one-shot bootstrap for `setup.ps1`, and a fresh machine converges either way because every later migration is `ADD COLUMN IF NOT EXISTS`. Treat `migrations/` as authoritative.
+
+`016_backfill_conviction_scoring.sql` is a data-only migration — no new columns, just retroactively filling ones 014 added but never backfilled for pre-014 rows. See [`CHANGELOG.md`](CHANGELOG.md) for why and what it verified.
 
 ### `prompt_registry`
 One row per prompt version per agent. Only one row per `agent_id` has `is_active = TRUE`.
@@ -126,13 +137,14 @@ One row per pipeline run per position. Inserted as a partial row at pipeline sta
 | `earnings_*`, `primary_*`, `momentum_*`, `trend_*`, `volume_*`, `technical_*` (tech_judge) | Per-agent signal/confidence/rationale/model/prompt_version/output columns |
 | `question_def_output` | Raw QuestionDefinition output (decomposed sub-questions live in `forecast_questions`, not here) |
 
-**v2 decomposition-pipeline columns** (added 008/009/010; the only columns `AggregationAgent` writes for the final recommendation):
+**v2 decomposition-pipeline columns** (added 008/009/010/013/014/015; the only columns `AggregationAgent` writes for the final recommendation):
 
 | Column | Type | Notes |
 |---|---|---|
 | `mechanical_score` | NUMERIC(8,4) | Deterministic EV score — see [Aggregation](#aggregation--from-score-to-recommendation) |
 | `adjusted_score` | NUMERIC(8,4) | `mechanical_score` + clamped LLM delta, in `[-1, 1]` — **this is what `TriageAgent` gates on** |
-| `score_adjustment_rationale`, `decision_rationale` | TEXT | LLM's stated justification for its adjustment / recommendation |
+| `score_adjustment_rationale`, `decision_rationale` | TEXT | LLM's stated justification for its adjustment / recommendation — the technical audit trail, bulleted, naming internal fields by name |
+| `decision_summary` | TEXT | Plain-English sibling to `decision_rationale`, a few paragraphs for an experienced investor with no visibility into this system's internals — same call, same run, added `migrations/017_decision_summary.sql`. `NULL` on every row written before that migration; deliberately not backfilled (a fresh LLM call per historical row was deferred as a cost decision — see [`CHANGELOG.md`](CHANGELOG.md)) |
 | `expected_upside_impact`, `expected_downside_impact`, `upside_downside_ratio` | NUMERIC(8,4) | The two probability-weighted sides of `mechanical_score`'s ledger (`upside_impact`/`downside_impact` in `compute_mechanical_score`), plus their ratio — stored so the split behind the score is auditable even after normalization collapses it into one `[-1, +1]` number. See [Aggregation](#aggregation--from-score-to-recommendation). |
 | `monitor_list` | TEXT (JSON) | Sub-signal-worthy items excluded from scoring |
 | `nearterm_critical_high_count` | INTEGER | From `QuestionDefinitionAgent` |
@@ -143,7 +155,10 @@ One row per pipeline run per position. Inserted as a partial row at pipeline sta
 | `final_score` | NUMERIC(8,4) | The decision score: `(mechanical_score + clamped delta) × conviction`. **This is what the buy/sell thresholds are compared against** |
 | `question_count` | INTEGER | = `scored_count` from `compute_mechanical_score` |
 | `buy_threshold_used`, `sell_threshold_used` | NUMERIC(8,4) | The actual thresholds applied this run, after the asymmetry shift |
-| `recommendation` | VARCHAR(20) | `buy` / `sell` / `hold` / `pass` |
+| `strong_margin_used` | NUMERIC(8,4) | `_STRONG_MARGIN` in effect this run — how far past the threshold `final_score` had to reach to band "Strong". Stored so the prior can be retuned and historical bands recomputed in SQL |
+| `recommendation` | VARCHAR(20) | `Buy` / `Sell` / `Hold` / `Pass` (Proper Case since 013). NULL means the LLM produced no usable call — never a fabricated one |
+| `recommendation_band` | VARCHAR(20) | `Strong Buy` / `Buy` / `Hold` / `Sell` / `Strong Sell` / `Pass`. Display-only refinement **of `recommendation`**, not a re-derivation from `final_score` — see [Aggregation](#aggregation--from-score-to-recommendation). NULL whenever `recommendation` is |
+| `confidence` | VARCHAR(10) | `High` / `Medium` / `Low` — the LLM's stated confidence in the call. NULL on an unrecognized value rather than risking truncation |
 | `aggregation_output` | TEXT (JSON) | Full raw LLM output from the aggregation call |
 
 ### `forecast_questions`
@@ -284,7 +299,7 @@ Every LLM-calling agent subclasses this (`TriageAgent` doesn't — it makes no A
 **Pricing table** (`_PRICING`, `$ per MTok` as `(input, output, cached_input)`) — update this whenever a new model is added to `AGENT_MODELS`:
 - `claude-sonnet-5`: 3.00 / 15.00 / 0.30
 - `claude-haiku-4-5-20251001`: 1.00 / 5.00 / 0.10
-- `claude-opus-4-8`: 15.00 / 75.00 / 1.50
+- `claude-opus-5`: 5.00 / 25.00 / 0.50
 
 The active model per agent is defined in `personas/model_config.py` — check that file for the current assignment; it's been observed running all-Haiku during test phases with the intended production model commented out alongside it, so don't assume the docstrings above are the live config.
 
@@ -328,9 +343,9 @@ Each agent's `run()` calls `get_active_prompt()`, builds messages, calls `self.c
 **agent_id:** `confidence_judge`. **Input:** `elicitation_output`, `review_output`, `question_id`, `forecast_id`, `macro_state_id=None`. Uses the reviewed probability if `review_flag=True`; applies shrinkage toward the outside view when inside/outside estimates diverge by more than 0.20; computes a confidence interval. **Output:** `final_probability`, `ci_lower`, `ci_upper`, `confidence`, `rationale`. **Writes:** `forecast_questions.final_probability`, `confidence`, `model_id`, `forecast_rationale`, `question_output`. This is the probability `AggregationAgent` actually scores.
 
 #### `AggregationAgent`
-**agent_id:** `aggregation`. **Input:** `questions: list`, `monitor_list: list`, `risk_floor_output: dict`, `forecast_id`, `asymmetric_rating: Optional[str] = None`, `macro_state_id=None`. The final decision agent — see the dedicated section below. **Writes:** `forecasts.mechanical_score`, `adjusted_score`, `score_adjustment_rationale`, `decision_rationale`, `expected_upside_impact`, `expected_downside_impact`, `upside_downside_ratio`, `asymmetry_adjustment`, `conviction`, `total_evidence`, `final_score`, `question_count`, `buy_threshold_used`, `sell_threshold_used`, `monitor_list`, `recommendation`, `aggregation_output`, `schema_version=2`; also `forecast_questions.rationale_quality_score`/`rationale_quality_notes` per question via its per-question grading.
+**agent_id:** `aggregation`. **Input:** `questions: list`, `monitor_list: list`, `risk_floor_output: dict`, `forecast_id`, `asymmetric_rating: Optional[str] = None`, `macro_state_id=None`. The final decision agent — see the dedicated section below. **Writes:** `forecasts.mechanical_score`, `adjusted_score`, `score_adjustment_rationale`, `decision_rationale`, `decision_summary`, `expected_upside_impact`, `expected_downside_impact`, `upside_downside_ratio`, `asymmetry_adjustment`, `conviction`, `total_evidence`, `final_score`, `question_count`, `buy_threshold_used`, `sell_threshold_used`, `monitor_list`, `recommendation`, `recommendation_band`, `strong_margin_used`, `aggregation_output`, `schema_version=2`; also `forecast_questions.rationale_quality_score`/`rationale_quality_notes` per question via its per-question grading.
 
-`max_tokens=32000` for this call specifically — an 8096 budget was observed truncating mid-`decision_rationale` on a live 7-question run (thorough per-question grading notes × up to 7 questions adds up fast), and the underlying model has been observed drafting a full JSON object, writing a self-correcting narrative aside, then emitting a second complete object — `extract_json`'s "prefer the last complete object" behavior exists specifically to handle that, but the token budget still has to cover both attempts.
+`max_tokens=32000` for this call specifically — an 8096 budget was observed truncating mid-`decision_rationale` on a live 7-question run (thorough per-question grading notes × up to 7 questions adds up fast), and the underlying model has been observed drafting a full JSON object, writing a self-correcting narrative aside, then emitting a second complete object — `extract_json`'s "prefer the last complete object" behavior exists specifically to handle that, but the token budget still has to cover both attempts. `decision_summary` (added `migrations/017_decision_summary.sql`) adds a few paragraphs of prose on top of that, generously estimated at ~600-1600 tokens — well inside the existing headroom, so `max_tokens` was left unchanged; treat any observed truncation as the actual signal to raise it, not a recalculation.
 
 ---
 
@@ -412,8 +427,36 @@ Coerces to float (`0.0` on `TypeError`/`ValueError`), clamps to `[-0.30, 0.30]` 
 ### `derive_recommendation(questions, final_score, llm_recommendation, total_evidence, buy_threshold, sell_threshold) -> str`
 Empty `questions` → `"Pass"` (insufficient scorable signal — distinct from `"Hold"`, which means signal exists and nets neutral). Then the evidence floor: if `total_evidence` is below `_M_FLOOR`, `"Pass"` — this **overrides even a valid LLM recommendation**. Otherwise, if the LLM returned a valid `Buy`/`Sell`/`Hold`/`Pass`, use it verbatim; else fall back to the threshold mapping against `final_score` (the conviction-scaled tilt).
 
+### `derive_recommendation_band(recommendation, final_score, buy_threshold, sell_threshold, strong_margin) -> Optional[str]`
+
+```python
+_STRONG_MARGIN = 0.20
+
+if recommendation == "Buy":
+    return "Strong Buy" if final_score >= round(buy_threshold + strong_margin, 4) else "Buy"
+if recommendation == "Sell":
+    return "Strong Sell" if final_score <= round(sell_threshold - strong_margin, 4) else "Sell"
+if recommendation in _VALID_RECOMMENDATIONS:   # Hold, Pass -- never split
+    return recommendation
+return None                                    # NULL recommendation -> NULL band
+```
+
+A **display-only** refinement of an already-settled `recommendation`, stored as `forecasts.recommendation_band`: **Strong Buy / Buy / Hold / Sell / Strong Sell / Pass**. `mechanical_score` normalizes away magnitude and `conviction` restores it, so by the time `final_score` exists the row already knows *how strongly* a call cleared its bar — this just stops discarding that at the last step. Base thresholds put Strong Buy at `final_score ≥ 0.55` and Strong Sell at `≤ -0.55`; a `High` asymmetry position (shift 0.25) reaches Strong Buy at 0.30, since the band rides on the shifted thresholds rather than fighting them.
+
+The critical property is that it reads **`recommendation`, not `final_score`**. `derive_recommendation` returns the LLM's own label verbatim when valid, so the stored call and the score can legitimately disagree — forecast 30 (FNV) is the standing example, where the model answered `HOLD` on a score that cleared the buy bar because the margin was "within measurement error". A band derived from `final_score` directly would have contradicted the stored recommendation on exactly those rows. Reading the recommendation first means the band can only ever *refine* the call, never overturn it; `Hold` and `Pass` are never split (there is no "Strong Hold"), and a NULL recommendation yields a NULL band rather than an invented one.
+
+Both bars are rounded to 4dp before comparison, matching the precision `final_score` is stored at. Without it the boundary is decided by float error: a shifted `buy_threshold` of 0.10 plus a 0.20 margin evaluates to `0.30000000000000004`, so an exactly-0.30 `final_score` would miss its own threshold by 1 ULP and silently band down.
+
+`strong_margin_used` is persisted per-row for the same reason `buy_threshold_used`/`sell_threshold_used` are: `_STRONG_MARGIN` is an uncalibrated prior (like `_K_CONVICTION` and `_M_FLOOR`), so pinning the value in effect for each run means it can be retuned later and historical bands recomputed in SQL without re-running any forecast.
+
 ### What the LLM actually contributes
 `run()` computes everything above in code first, then sends the questions, monitor list, risk-judge output, mechanical score, and both adjustments (already applied to the thresholds shown to the model) to the LLM, and asks for exactly three things: (1) a `rationale_quality_score`/`rationale_quality_notes` grade for each sub-question's reasoning, (2) a bounded `adjustment_delta` (±0.30) with `score_adjustment_rationale`, and (3) a `recommendation` with `decision_rationale`. The prompt gives the model the mechanical score, `conviction`, `M`, the asymmetry-shifted thresholds, and the `final_score` formula, and tells it to judge Buy/Sell/Hold against `final_score` (and to Pass below the evidence floor `_M_FLOOR`) rather than re-deriving any of it. `adjusted_score = clamp(mechanical_score + clamp_adjustment(delta), -1, 1)`; `final_score = adjusted_score × conviction`. Nothing about `mechanical_score`, `conviction`, `upside_impact`, `downside_impact`, or the threshold values is LLM-computed — only `adjusted_score`'s *delta* and the final label (when the LLM supplies a valid one) come from the model.
+
+### `decision_summary` — the same call's plain-English sibling
+
+`decision_rationale` and `decision_summary` are the same finished call written twice, for two different readers, in the same LLM response. `decision_rationale` is the audit trail: five bulleted facets naming internal machinery by name (`mechanical_score`, `invq2_floor`, `conviction`, question indices), read by someone reviewing the mechanism itself. `decision_summary` is a few paragraphs of investment commentary — the call, the catalysts behind it, the risks against it, optionally what would flip it — written for an experienced investor with zero familiarity with this system's scoring internals, explicitly instructed (`personas/aggregation.md`) to translate the finished call rather than reword `decision_rationale` with the jargon swapped out. Neither field feeds back into `mechanical_score`, `recommendation`, or any threshold; both are pure narrative output stored alongside the deterministic columns that actually drive the call.
+
+Generated in the same call as everything else in this section (no extra API cost or latency), so it's only ever present when the rest of the row is: `NULL` on any forecast run before `migrations/017_decision_summary.sql`, and deliberately not backfilled for historical rows — unlike `total_evidence`/`conviction`/`final_score` (016), it can't be reconstructed from already-persisted columns; producing it retroactively would mean a fresh LLM call per historical forecast, which was explicitly deferred as a cost decision rather than attempted quietly.
 
 ---
 
