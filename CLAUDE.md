@@ -91,6 +91,22 @@ LLM Superforecaster — applies Tetlock superforecaster discipline to investment
   name) with a fresh token from `.../settings/actions/runners/new`, and confirm the runner shows
   Idle at `.../settings/actions/runners`. Don't chase this as a code problem — check runner
   registration status first whenever CI goes from working to `startup_failure` on every run.
+- **If CI fails during `pytest` *collection* (not a test body) with
+  `forecaster.config.SecretsNotFoundError: None of ['Anthropic.py', 'api_key.py'] found in any of
+  [...]`, the job itself ran fine — this is a missing file in the Secrets folder the runner reads,
+  not a code or workflow bug.** `forecaster/credentials.py`'s `_load()` runs at import time, and
+  `test_edgar_client.py`/`test_pipeline.py`/`test_sync_prompts.py` transitively import
+  `forecaster.db`/`forecaster.edgar_client`, so collection fails before any mocking in the test
+  bodies ever runs. If `postgres.py` resolves (the traceback gets past the DB-credentials call
+  before failing on Anthropic) then `SECRETS_DIRS` itself is correct — only the Anthropic key file
+  is missing from it. This happened on `JAMES-DESKTOP` some time between 2026-07-20 (run #170,
+  green) and 2026-08-01 (first red run of this kind), and was still broken as of the 2026-09-26 run
+  that bumped `actions/checkout` to 7.0.1 (unrelated to that commit — every push in between failed
+  identically). Fix: on `JAMES-DESKTOP`, restore `Anthropic.py` (or the CI-runner-account fallback
+  `api_key.py`) — defining `ANTHROPIC_API_KEY` — in the directory `FORECASTER_SECRETS_DIR` points
+  at, and confirm `SEC.py`/`sec_id.py` is present too (the traceback never reaches that check).
+  Never work around this by hardcoding a key or adding a `.env` fallback in the repo — that's
+  exactly what the Secrets-folder-only rule above exists to prevent.
 
 ## Environment
 No `.env` file is used for secrets — see `README.md`'s "Configuration"/"Credentials" sections for
