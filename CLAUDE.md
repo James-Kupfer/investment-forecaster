@@ -33,7 +33,7 @@ LLM Superforecaster — applies Tetlock superforecaster discipline to investment
 
 ## Agent Conventions
 - All LLM-calling agents subclass `BaseAgent` (`forecaster/agents/base.py`); set `agent_id` as a class attribute and implement `_parse_response()`. Do NOT set `model` on the agent class — `personas/model_config.py`'s `AGENT_MODELS` is the sole owner; `BaseAgent.__init__` raises if `agent_id` isn't listed there.
-- Every agent's `_parse_response()` must extract text via `self.extract_text_block(response)`, never `response.content[0].text` directly — models with extended thinking enabled (e.g. `claude-sonnet-5`) return a `ThinkingBlock` first, which has no `.text` attribute.
+- Every agent's `_parse_response()` must extract text via `self.extract_text_block(response)`, never `response.content[0].text` directly — models with extended thinking enabled (e.g. `claude-sonnet-5-5`) return a `ThinkingBlock` first, which has no `.text` attribute.
 - `log_call()` must be called immediately after every API call — never batched; call failures must still be logged.
 - When an agent's evidence source can fall back (EDGAR miss → free-text `financials` field → training knowledge, e.g. `earnings.py`/`primary_source.py`), always label which one was used via a `data_source` field in the prompt/output — don't let a fallback masquerade as primary evidence in the stored rationale.
 
@@ -62,7 +62,7 @@ LLM Superforecaster — applies Tetlock superforecaster discipline to investment
   `aggregation`) were caught truncating mid-response on real LIN runs before their budgets were
   raised — one of them (`risk_judge`) had no recoverable earlier draft and silently lost its entire
   output for that run.
-- Agents on `claude-sonnet-5`/`claude-opus-4-8` (`question_definition`, `macroq`, `risk_judge`,
+- Agents on `claude-sonnet-5-5`/`claude-opus-5-5` (`question_definition`, `macroq`, `risk_judge`,
   `elicitation`, `review`, `aggregation` as currently configured) need extra headroom: no `thinking`
   param is set in `BaseAgent.call()`, so any extended-reasoning tokens these models produce draw
   from the same `max_tokens` pool as the visible output, not a separate budget.
