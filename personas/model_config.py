@@ -74,3 +74,14 @@ AGENT_MODELS: dict[str, str] = {
  # expected-value score, and issues the buy/sell/hold/pass recommendation.
  "aggregation": "claude-opus-5-5",
 }
+
+# Per-agent reasoning effort, sent as output_config.effort. Only agents listed
+# here send it; every other agent uses the API default for its model. Claude
+# Opus 5.5 always thinks and defaults to "medium" (Opus 4.8 defaulted to
+# "high"), so its agents are pinned explicitly. Thinking tokens count against
+# each agent's max_tokens.
+AGENT_EFFORT: dict[str, str] = {
+ "question_definition": "high",
+ "elicitation": "high",
+ "aggregation": "high",
+}

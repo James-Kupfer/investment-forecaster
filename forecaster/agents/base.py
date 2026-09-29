@@ -43,13 +43,14 @@ class BaseAgent(ABC):
     model: str
 
     def __init__(self) -> None:
-        from personas.model_config import AGENT_MODELS
+        from personas.model_config import AGENT_EFFORT, AGENT_MODELS
         if self.agent_id not in AGENT_MODELS:
             raise ValueError(
                 f'No model configured for agent_id "{self.agent_id}" in '
                 f'personas/model_config.py — add it before instantiating this agent.'
             )
         self.model = AGENT_MODELS[self.agent_id]
+        self.effort: Optional[str] = AGENT_EFFORT.get(self.agent_id)
         self.client = anthropic.Anthropic()
 
     def get_active_prompt(self) -> tuple[int, str]:
@@ -105,8 +106,14 @@ class BaseAgent(ABC):
             params: dict = {'model': self.model, 'max_tokens': max_tokens, 'messages': messages}
             if system:
                 params['system'] = system
-            if output_config:
-                params['output_config'] = output_config
+            # The agent's configured effort merges into any caller-supplied
+            # output_config (e.g. aggregation's structured-output format); an
+            # explicit 'effort' from the caller wins.
+            merged_config = dict(output_config) if output_config else {}
+            if self.effort:
+                merged_config.setdefault('effort', self.effort)
+            if merged_config:
+                params['output_config'] = merged_config
             # Streaming, not .create() -- the SDK refuses non-streaming requests
             # it estimates could exceed 10 minutes (observed live once max_tokens
             # was raised on Opus: "Streaming is required for operations that may
