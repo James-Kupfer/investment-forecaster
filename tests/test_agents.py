@@ -702,3 +702,41 @@ class TestPrimarySourceAgentDataSource:
         )
         assert "data_source=edgar" in content
         assert "ignored narrative" not in content
+
+
+# ---------------------------------------------------------------------------
+# BaseAgent effort
+# ---------------------------------------------------------------------------
+
+class TestBaseAgentEffort:
+    """output_config.effort comes from personas.model_config.AGENT_EFFORT and
+    merges with any caller-supplied output_config."""
+
+    @staticmethod
+    def _sent_output_config(agent_id: str, output_config=None):
+        from forecaster.agents.base import BaseAgent
+
+        class _Agent(BaseAgent):
+            def _parse_response(self, response) -> dict:
+                return {}
+
+        _Agent.agent_id = agent_id
+        with patch("anthropic.Anthropic") as mock_client_cls:
+            agent = _Agent()
+        stream = mock_client_cls.return_value.messages.stream
+        stream.return_value.__enter__.return_value.get_final_message.return_value = (
+            _make_anthropic_response("{}")
+        )
+        with patch.object(_Agent, "get_active_prompt", return_value=(1, "p")):
+            agent.call([{"role": "user", "content": "x"}], output_config=output_config)
+        return stream.call_args.kwargs.get("output_config")
+
+    def test_opus_agent_sends_high_effort(self):
+        assert self._sent_output_config("elicitation") == {"effort": "high"}
+
+    def test_effort_merges_with_structured_output_format(self):
+        fmt = {"format": {"type": "json_schema", "schema": {}}}
+        assert self._sent_output_config("aggregation", fmt) == {**fmt, "effort": "high"}
+
+    def test_unlisted_agent_sends_no_output_config(self):
+        assert self._sent_output_config("review") is None

@@ -9,14 +9,12 @@ import forecaster.credentials  # noqa: F401 (loads ANTHROPIC_API_KEY into os.env
 from forecaster.db import db_cursor
 
 # (input_per_mtok, output_per_mtok, cached_input_per_mtok)
-# Rates are Anthropic's current published per-MTok prices; cached input is the
-# standard ~10%-of-input read rate.
+# Rates are Anthropic's current published per-MTok prices (cached input is the
+# cache-read rate: 10% of input for Haiku, 5% for Sonnet 5.5 / Opus 5.5).
 _PRICING: dict[str, tuple[float, float, float]] = {
-    'claude-sonnet-5':            (3.00, 15.00, 0.30),
+    'claude-sonnet-5-5':          (2.00, 10.00, 0.20),
     'claude-haiku-4-5-20251001':  (1.00,  5.00, 0.10),
-    # Opus 4.8: $5 in / $25 out per MTok (was previously entered as $15/$75 —
-    # ~3x too high, which overstated every logged Opus call cost).
-    'claude-opus-4-8':            (5.00, 25.00, 0.50),
+    'claude-opus-5-5':            (4.00, 20.00, 0.20),
 }
 
 
@@ -45,13 +43,14 @@ class BaseAgent(ABC):
     model: str
 
     def __init__(self) -> None:
-        from personas.model_config import AGENT_MODELS
+        from personas.model_config import AGENT_EFFORT, AGENT_MODELS
         if self.agent_id not in AGENT_MODELS:
             raise ValueError(
                 f'No model configured for agent_id "{self.agent_id}" in '
                 f'personas/model_config.py — add it before instantiating this agent.'
             )
         self.model = AGENT_MODELS[self.agent_id]
+        self.effort: Optional[str] = AGENT_EFFORT.get(self.agent_id)
         self.client = anthropic.Anthropic()
 
     def get_active_prompt(self) -> tuple[int, str]:
@@ -107,8 +106,14 @@ class BaseAgent(ABC):
             params: dict = {'model': self.model, 'max_tokens': max_tokens, 'messages': messages}
             if system:
                 params['system'] = system
-            if output_config:
-                params['output_config'] = output_config
+            # The agent's configured effort merges into any caller-supplied
+            # output_config (e.g. aggregation's structured-output format); an
+            # explicit 'effort' from the caller wins.
+            merged_config = dict(output_config) if output_config else {}
+            if self.effort:
+                merged_config.setdefault('effort', self.effort)
+            if merged_config:
+                params['output_config'] = merged_config
             # Streaming, not .create() -- the SDK refuses non-streaming requests
             # it estimates could exceed 10 minutes (observed live once max_tokens
             # was raised on Opus: "Streaming is required for operations that may

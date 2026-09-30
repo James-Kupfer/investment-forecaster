@@ -282,9 +282,9 @@ Every LLM-calling agent subclasses this (`TriageAgent` doesn't — it makes no A
 | `_compute_cost(...)` | Looks up per-model rates from `_PRICING` |
 
 **Pricing table** (`_PRICING`, `$ per MTok` as `(input, output, cached_input)`) — update this whenever a new model is added to `AGENT_MODELS`:
-- `claude-sonnet-5`: 3.00 / 15.00 / 0.30
+- `claude-sonnet-5-5`: 2.00 / 10.00 / 0.20
 - `claude-haiku-4-5-20251001`: 1.00 / 5.00 / 0.10
-- `claude-opus-4-8`: 15.00 / 75.00 / 1.50
+- `claude-opus-5-5`: 4.00 / 20.00 / 0.20
 
 The active model per agent is defined in `personas/model_config.py` — check that file for the current assignment; it's been observed running all-Haiku during test phases with the intended production model commented out alongside it, so don't assume the docstrings above are the live config.
 
