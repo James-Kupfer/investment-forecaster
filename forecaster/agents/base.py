@@ -20,6 +20,16 @@ _PRICING: dict[str, tuple[float, float, float]] = {
 }
 
 
+# Single ceiling for every agent. `max_tokens` is a cap, not a reservation: you are
+# billed for tokens the model actually writes, and adaptive thinking does not spend
+# more just because the ceiling is higher. So there is no reason to tune this per
+# agent -- the only thing a tight cap buys is silent truncation, which has already
+# cost three agents a run. 50k sits under every assigned model's output limit
+# (Opus 5 and Sonnet 5: 128k; Haiku 4.5: 64k) and far above any observed usage
+# (highest ever recorded: 9,590 tokens).
+DEFAULT_MAX_TOKENS = 50_000
+
+
 @dataclass
 class AgentResult:
     agent_id: str
@@ -85,7 +95,7 @@ class BaseAgent(ABC):
         self,
         messages: list,
         system: Optional[str] = None,
-        max_tokens: int = 1024,
+        max_tokens: int = DEFAULT_MAX_TOKENS,
         output_config: Optional[dict] = None,
     ) -> AgentResult:
         """output_config takes the Anthropic structured-outputs shape, e.g.

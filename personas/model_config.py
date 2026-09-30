@@ -6,7 +6,11 @@
 #
 # Listed in pipeline execution order (see
 # \.claude\plans\i-updated-the-list-wise-pnueli.md — Stages A-D).
-# Currently Haiku across the board for test purposes.
+# Haiku is reserved for the mechanical technical agents (momentum, trend,
+# volume, tech_judge). Every agent making a judgement call runs on Sonnet 5
+# or Opus 5: BaseAgent.call() sets no `thinking` param, and Haiku 4.5 uses
+# classic extended thinking (off unless requested), so a Haiku agent does no
+# reasoning at all -- fine for reading an indicator, not for a judgement.
 #
 # TriageAgent is not listed: it's a pure Python threshold gate with no LLM
 # call. PatternAgent was removed (dead code — never invoked by the pipeline).
@@ -23,7 +27,7 @@ AGENT_MODELS: dict[str, str] = {
  # --- Stage B: shared symbol-level evidence (once) ---
  # Macro analyst: builds a decision tree from VIX, DXY, rates, and sector
  # ETF signals; shared context for every sub-question.
- "macroq": "claude-haiku-4-5-20251001",
+ "macroq": "claude-sonnet-5",
 
  # Symbol-level downside-floor backstop: base-rate risk floor, plus a
  # scale-aware judgment of whether the sub-question density found in
@@ -66,7 +70,7 @@ AGENT_MODELS: dict[str, str] = {
 
  # Probability calibrator: shrinkage, confidence interval, and rationale
  # for one sub-question's final calibrated probability.
- "confidence_judge": "claude-haiku-4-5-20251001",
+ "confidence_judge": "claude-sonnet-5",
 
  # --- Stage D: aggregate (once) ---
  # Final decision agent: grades each sub-question's rationale quality,

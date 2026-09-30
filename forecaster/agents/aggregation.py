@@ -334,25 +334,9 @@ class AggregationAgent(BaseAgent):
                 ),
             }
         ]
-        # 8096 was found (live LIN run) to truncate mid-decision_rationale for a
-        # full 7-question set: thorough per-question grading notes (decision 8)
-        # times up to 7 questions, plus score_adjustment_rationale and
-        # decision_rationale, routinely exceeds it. Truncated JSON silently loses
-        # whatever fields come after the cutoff (recommendation has a mechanical
-        # fallback via derive_recommendation; decision_rationale does not). This
-        # agent is now on Opus, which was separately observed (same live run) to
-        # sometimes draft a JSON object, self-correct with narrative text, then
-        # emit a second complete object -- effectively doubling total output for
-        # a single call. Sized well above that worst case for a full 7-question set.
-        # decision_summary (added later) is placed after decision_rationale in the
-        # schema and adds a few paragraphs of prose on top -- generously estimated
-        # at ~600-1600 tokens, comfortably inside the existing headroom. If real
-        # runs show truncation (result.error, or decision_summary cut off mid-
-        # sentence), that's the signal to raise this further, not a recalculation.
         result = self.call(
             messages,
             system=system_prompt,
-            max_tokens=32000,
             output_config={"format": {"type": "json_schema", "schema": AGGREGATION_SCHEMA}},
         )
         self.log_call(result, forecast_id=forecast_id, macro_state_id=macro_state_id)

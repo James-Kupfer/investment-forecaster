@@ -147,11 +147,7 @@ class QuestionDefinitionAgent(BaseAgent):
                 ),
             }
         ]
-        # Extended thinking (used by claude-sonnet-5/claude-opus-5) counts
-        # against max_tokens with no separate thinking budget, so this needs
-        # more headroom than a non-thinking model would -- set generously above
-        # any observed usage (this agent is now on Opus).
-        result = self.call(messages, system=system_prompt, max_tokens=24000)
+        result = self.call(messages, system=system_prompt)
         self.log_call(result, forecast_id=forecast_id, macro_state_id=macro_state_id)
 
         result.output = self.enforce_admission_gate(result.output)

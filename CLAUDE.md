@@ -73,14 +73,23 @@ LLM Superforecaster — applies Tetlock superforecaster discipline to investment
 - Every agent's `max_tokens` is set generously above any observed real usage — truncation is a
   silent-failure mode, not a loud one: `extract_json` returns whatever complete JSON object it can
   find, so a cut-off response either loses just the fields after the cutoff (if an earlier complete
-  object exists) or returns `{}` entirely (if nothing closes). Two agents (`risk_judge`,
-  `aggregation`) were caught truncating mid-response on real LIN runs before their budgets were
-  raised — one of them (`risk_judge`) had no recoverable earlier draft and silently lost its entire
-  output for that run.
-- Agents on `claude-sonnet-5`/`claude-opus-4-8` (`question_definition`, `macroq`, `risk_judge`,
-  `elicitation`, `review`, `aggregation` as currently configured) need extra headroom: no `thinking`
-  param is set in `BaseAgent.call()`, so any extended-reasoning tokens these models produce draw
-  from the same `max_tokens` pool as the visible output, not a separate budget.
+  object exists) or returns `{}` entirely (if nothing closes). Three agents (`risk_judge`,
+  `aggregation`, `primary_source`) have been caught truncating on real LIN runs — `risk_judge` had
+  no recoverable earlier draft and silently lost its entire output for that run. `max_tokens` is a
+  cap, not a reservation: you are billed for tokens actually emitted, so raising a budget costs
+  nothing until it is used. Size these generously and treat a cap within ~2x of observed maximum
+  output as under-budgeted. `BaseAgent.call()` now flags `stop_reason == 'max_tokens'`, but
+  detection is not headroom.
+- Every agent making a judgement call runs on `claude-sonnet-5` or `claude-opus-5`; `claude-haiku-4-5`
+  is reserved for the four mechanical technical agents (`momentum`, `trend`, `volume`, `tech_judge`).
+  This is deliberate and not just a cost tier: no `thinking` param is set in `BaseAgent.call()`, and
+  Haiku 4.5 uses classic extended thinking (off unless explicitly requested), so a Haiku agent
+  performs no reasoning at all. Sonnet 5 and Opus 5 have adaptive thinking on by default, and those
+  reasoning tokens draw from the same `max_tokens` pool as visible output — which is the other
+  reason those agents need extra headroom.
+- Sonnet 5 emits roughly **1.7–2.7x** more output than Haiku 4.5 for the same agent and prompt
+  (measured across six agents observed on both). When moving an agent from Haiku to Sonnet, scale its
+  `max_tokens` accordingly — the budget that was generous on Haiku will not be.
 - Opus was also observed, on the same live run, drafting a full JSON object, writing a
   self-correcting narrative aside ("...correcting to the required schema:"), then emitting a
   second complete object — effectively doubling total output tokens for a single call.

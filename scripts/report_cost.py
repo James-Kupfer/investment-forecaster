@@ -24,6 +24,7 @@ CSV_PATH = Path(__file__).resolve().parent.parent / "cost_report.csv"
 CSV_COLUMNS = [
     "forecast_id", "symbol", "forecast_date", "agent_id", "executing_model",
     "calls", "tokens_in", "tokens_out", "tokens_cached", "cost_usd", "had_errors",
+    "duration_ms_total", "duration_ms_slowest_call",
 ]
 
 
@@ -42,7 +43,8 @@ def fetch_rows(forecast_id: int | None, symbol: str | None, show_all: bool) -> l
     query = (
         "SELECT f.id, f.symbol, f.forecast_date, l.agent_id, l.executing_model, "
         "       COUNT(*), SUM(l.tokens_in), SUM(l.tokens_out), SUM(l.tokens_cached), "
-        "       SUM(l.call_cost_usd), BOOL_OR(l.error IS NOT NULL) "
+        "       SUM(l.call_cost_usd), BOOL_OR(l.error IS NOT NULL), "
+        "       COALESCE(SUM(l.duration_ms), 0), COALESCE(MAX(l.duration_ms), 0) "
         "FROM llm_call_log l "
         "JOIN forecasts f ON f.id = l.forecast_id "
     )
@@ -68,27 +70,32 @@ def print_report(rows: list[tuple]) -> None:
     grand_total = 0.0
     current_forecast_id = None
     run_total = 0.0
+    run_seconds = 0.0
     run_errors = False
 
     def flush_run():
         if current_forecast_id is not None:
             err_note = " (had errors)" if run_errors else ""
-            print(f"  RUN TOTAL: ${run_total:.4f}{err_note}\n")
+            print(f"  RUN TOTAL: ${run_total:.4f}  {run_seconds:.1f}s of LLM time{err_note}\n")
 
-    for (fid, symbol, fdate, agent_id, model, calls, tin, tout, tcached, cost, had_errors) in rows:
+    for (fid, symbol, fdate, agent_id, model, calls, tin, tout, tcached, cost, had_errors,
+         dur_total, dur_max) in rows:
         if fid != current_forecast_id:
             flush_run()
             print(f"forecast_id={fid}  symbol={symbol}  date={fdate}")
             current_forecast_id = fid
             run_total = 0.0
+            run_seconds = 0.0
             run_errors = False
         err_flag = "  [errors]" if had_errors else ""
         print(
             f"  {agent_id:<20} {model:<28} calls={calls:<3} "
-            f"in={tin:<8} out={tout:<8} cost=${cost:.4f}{err_flag}"
+            f"in={tin:<8} out={tout:<8} cost=${cost:.4f} "
+            f"{dur_total / 1000.0:>6.1f}s{err_flag}"
         )
         run_total += float(cost)
         grand_total += float(cost)
+        run_seconds += dur_total / 1000.0
         run_errors = run_errors or had_errors
 
     flush_run()
@@ -99,8 +106,10 @@ def write_csv(rows: list[tuple]) -> None:
     with open(CSV_PATH, "w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
         writer.writerow(CSV_COLUMNS)
-        for (fid, symbol, fdate, agent_id, model, calls, tin, tout, tcached, cost, had_errors) in rows:
-            writer.writerow([fid, symbol, fdate, agent_id, model, calls, tin, tout, tcached, f"{cost:.6f}", had_errors])
+        for (fid, symbol, fdate, agent_id, model, calls, tin, tout, tcached, cost, had_errors,
+             dur_total, dur_max) in rows:
+            writer.writerow([fid, symbol, fdate, agent_id, model, calls, tin, tout, tcached,
+                             f"{cost:.6f}", had_errors, dur_total, dur_max])
     logger.info("Wrote %s", CSV_PATH)
 
 

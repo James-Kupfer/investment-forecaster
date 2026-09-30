@@ -1,0 +1,523 @@
+forecast_id,symbol,forecast_date,agent_id,executing_model,calls,tokens_in,tokens_out,tokens_cached,cost_usd,had_errors
+81,ECOW,2026-07-18,review,claude-sonnet-5,1,12188,9147,0,0.173769,False
+81,ECOW,2026-07-18,elicitation,claude-opus-4-8,1,20638,2534,0,0.166540,False
+81,ECOW,2026-07-18,risk_judge,claude-sonnet-5,1,7032,9590,0,0.164946,False
+81,ECOW,2026-07-18,question_definition,claude-opus-4-8,1,13734,1806,0,0.113820,False
+81,ECOW,2026-07-18,earnings,claude-sonnet-5,1,10204,5277,0,0.109767,False
+81,ECOW,2026-07-18,aggregation,claude-opus-4-8,1,12298,1594,0,0.101340,False
+81,ECOW,2026-07-18,primary_source,claude-sonnet-5,1,8250,2898,0,0.068220,False
+81,ECOW,2026-07-18,confidence_judge,claude-haiku-4-5-20251001,1,3758,1849,0,0.013003,False
+81,ECOW,2026-07-18,macroq,claude-haiku-4-5-20251001,1,2160,1994,0,0.012130,False
+81,ECOW,2026-07-18,tech_judge,claude-haiku-4-5-20251001,1,3092,744,0,0.006812,False
+81,ECOW,2026-07-18,momentum,claude-haiku-4-5-20251001,1,1450,695,0,0.004925,False
+81,ECOW,2026-07-18,volume,claude-haiku-4-5-20251001,1,2012,514,0,0.004582,False
+81,ECOW,2026-07-18,trend,claude-haiku-4-5-20251001,1,1870,483,0,0.004285,False
+80,GCC,2026-07-18,review,claude-sonnet-5,1,11891,8515,0,0.163398,False
+80,GCC,2026-07-18,elicitation,claude-opus-4-8,1,17774,2515,0,0.151745,False
+80,GCC,2026-07-18,aggregation,claude-opus-4-8,1,12154,1553,0,0.099595,False
+80,GCC,2026-07-18,risk_judge,claude-sonnet-5,1,5363,5439,0,0.097674,False
+80,GCC,2026-07-18,question_definition,claude-opus-4-8,1,11689,1533,0,0.096770,False
+80,GCC,2026-07-18,earnings,claude-sonnet-5,1,9193,3211,0,0.075744,False
+80,GCC,2026-07-18,primary_source,claude-sonnet-5,1,7239,1827,0,0.049122,False
+80,GCC,2026-07-18,confidence_judge,claude-haiku-4-5-20251001,1,3724,1493,0,0.011189,False
+80,GCC,2026-07-18,macroq,claude-haiku-4-5-20251001,1,2160,1754,0,0.010930,False
+80,GCC,2026-07-18,tech_judge,claude-haiku-4-5-20251001,1,3332,871,0,0.007687,False
+80,GCC,2026-07-18,volume,claude-haiku-4-5-20251001,1,2011,653,0,0.005276,False
+80,GCC,2026-07-18,trend,claude-haiku-4-5-20251001,1,1866,678,0,0.005256,False
+80,GCC,2026-07-18,momentum,claude-haiku-4-5-20251001,1,1449,614,0,0.004519,False
+79,MOH,2026-07-18,elicitation,claude-opus-4-8,5,102733,12641,0,0.829690,False
+79,MOH,2026-07-18,review,claude-sonnet-5,5,63500,35895,0,0.728925,False
+79,MOH,2026-07-18,aggregation,claude-opus-4-8,1,29985,2823,0,0.220500,False
+79,MOH,2026-07-18,question_definition,claude-opus-4-8,1,13064,3501,0,0.152845,False
+79,MOH,2026-07-18,primary_source,claude-sonnet-5,1,16807,6511,0,0.148086,False
+79,MOH,2026-07-18,risk_judge,claude-sonnet-5,1,6368,6471,0,0.116169,False
+79,MOH,2026-07-18,earnings,claude-sonnet-5,1,9315,5164,0,0.105405,False
+79,MOH,2026-07-18,confidence_judge,claude-haiku-4-5-20251001,5,18593,10113,0,0.069158,False
+79,MOH,2026-07-18,macroq,claude-haiku-4-5-20251001,1,2160,2411,0,0.014215,False
+79,MOH,2026-07-18,tech_judge,claude-haiku-4-5-20251001,1,3023,644,0,0.006243,False
+79,MOH,2026-07-18,trend,claude-haiku-4-5-20251001,1,1870,695,0,0.005345,False
+79,MOH,2026-07-18,momentum,claude-haiku-4-5-20251001,1,1449,657,0,0.004734,False
+79,MOH,2026-07-18,volume,claude-haiku-4-5-20251001,1,2013,407,0,0.004048,False
+78,PANR LSE,2026-07-18,elicitation,claude-opus-4-8,3,61188,6943,0,0.479515,False
+78,PANR LSE,2026-07-18,review,claude-sonnet-5,3,28883,17412,0,0.347829,False
+78,PANR LSE,2026-07-18,risk_judge,claude-sonnet-5,1,7463,8318,0,0.147159,False
+78,PANR LSE,2026-07-18,aggregation,claude-opus-4-8,1,20110,1851,0,0.146825,False
+78,PANR LSE,2026-07-18,question_definition,claude-opus-4-8,1,14317,2825,0,0.142210,False
+78,PANR LSE,2026-07-18,primary_source,claude-sonnet-5,1,8600,4429,0,0.092235,False
+78,PANR LSE,2026-07-18,earnings,claude-sonnet-5,1,10554,2144,0,0.063822,False
+78,PANR LSE,2026-07-18,confidence_judge,claude-haiku-4-5-20251001,3,11210,5669,0,0.039555,False
+78,PANR LSE,2026-07-18,macroq,claude-haiku-4-5-20251001,1,2160,1865,0,0.011485,False
+74,CRGY,2026-07-17,elicitation,claude-haiku-4-5-20251001,4,68271,17806,0,0.157301,False
+74,CRGY,2026-07-17,review,claude-haiku-4-5-20251001,4,44038,16720,0,0.127638,False
+74,CRGY,2026-07-17,confidence_judge,claude-haiku-4-5-20251001,4,22095,9761,0,0.070900,False
+74,CRGY,2026-07-17,question_definition,claude-haiku-4-5-20251001,1,9815,7930,0,0.049465,False
+74,CRGY,2026-07-17,aggregation,claude-haiku-4-5-20251001,1,28336,4008,0,0.048376,False
+74,CRGY,2026-07-17,risk_judge,claude-haiku-4-5-20251001,1,5094,7234,0,0.041264,False
+74,CRGY,2026-07-17,earnings,claude-haiku-4-5-20251001,1,7455,2544,0,0.020175,False
+74,CRGY,2026-07-17,primary_source,claude-haiku-4-5-20251001,1,12984,1350,0,0.019734,False
+74,CRGY,2026-07-17,macroq,claude-haiku-4-5-20251001,1,2161,1986,0,0.012091,False
+74,CRGY,2026-07-17,tech_judge,claude-haiku-4-5-20251001,1,3296,803,0,0.007311,False
+74,CRGY,2026-07-17,volume,claude-haiku-4-5-20251001,1,2012,664,0,0.005332,False
+74,CRGY,2026-07-17,trend,claude-haiku-4-5-20251001,1,1867,635,0,0.005042,False
+74,CRGY,2026-07-17,momentum,claude-haiku-4-5-20251001,1,1450,647,0,0.004685,False
+73,CRGY,2026-07-17,risk_judge,claude-haiku-4-5-20251001,1,5052,5836,0,0.034232,False
+73,CRGY,2026-07-17,question_definition,claude-haiku-4-5-20251001,1,9815,4180,0,0.030715,False
+73,CRGY,2026-07-17,macroq,claude-haiku-4-5-20251001,1,2161,1945,0,0.011886,False
+72,CRGY,2026-07-17,elicitation,claude-opus-4-8,3,64653,6901,0,0.495790,False
+72,CRGY,2026-07-17,review,claude-sonnet-5,3,37263,19567,0,0.405294,False
+72,CRGY,2026-07-17,risk_judge,claude-sonnet-5,1,6775,9003,0,0.155370,False
+72,CRGY,2026-07-17,primary_source,claude-sonnet-5,1,17133,6187,0,0.144204,False
+72,CRGY,2026-07-17,aggregation,claude-opus-4-8,1,19631,1830,0,0.143905,False
+72,CRGY,2026-07-17,question_definition,claude-opus-4-8,1,13597,2573,0,0.132310,False
+72,CRGY,2026-07-17,earnings,claude-sonnet-5,1,10239,6150,0,0.122967,False
+72,CRGY,2026-07-17,confidence_judge,claude-haiku-4-5-20251001,3,11093,5297,0,0.037578,False
+72,CRGY,2026-07-17,macroq,claude-haiku-4-5-20251001,1,2161,2097,0,0.012646,False
+72,CRGY,2026-07-17,tech_judge,claude-haiku-4-5-20251001,1,3333,941,0,0.008038,False
+72,CRGY,2026-07-17,volume,claude-haiku-4-5-20251001,1,2012,655,0,0.005287,False
+72,CRGY,2026-07-17,trend,claude-haiku-4-5-20251001,1,1867,616,0,0.004947,False
+72,CRGY,2026-07-17,momentum,claude-haiku-4-5-20251001,1,1450,632,0,0.004610,False
+71,PANR LSE,2026-07-17,elicitation,claude-opus-4-8,4,85848,9326,0,0.662390,False
+71,PANR LSE,2026-07-17,review,claude-sonnet-5,4,43648,32912,0,0.624624,False
+71,PANR LSE,2026-07-17,aggregation,claude-opus-4-8,1,26359,2207,0,0.186970,False
+71,PANR LSE,2026-07-17,question_definition,claude-opus-4-8,1,14196,3201,0,0.151005,False
+71,PANR LSE,2026-07-17,risk_judge,claude-sonnet-5,1,7413,6668,0,0.122259,False
+71,PANR LSE,2026-07-17,earnings,claude-sonnet-5,1,10554,3863,0,0.089607,False
+71,PANR LSE,2026-07-17,primary_source,claude-sonnet-5,1,8600,3229,0,0.074235,False
+71,PANR LSE,2026-07-17,confidence_judge,claude-haiku-4-5-20251001,4,15251,9216,0,0.061331,False
+71,PANR LSE,2026-07-17,macroq,claude-haiku-4-5-20251001,1,2161,1731,0,0.010816,False
+70,ECOW,2026-07-17,elicitation,claude-opus-4-8,2,35819,4878,0,0.301045,False
+70,ECOW,2026-07-17,review,claude-sonnet-5,2,18974,14139,0,0.269007,False
+70,ECOW,2026-07-17,risk_judge,claude-sonnet-5,1,6982,7610,0,0.135096,False
+70,ECOW,2026-07-17,question_definition,claude-opus-4-8,1,13613,2284,0,0.125165,False
+70,ECOW,2026-07-17,aggregation,claude-opus-4-8,1,14608,1678,0,0.114990,False
+70,ECOW,2026-07-17,earnings,claude-sonnet-5,1,10204,3903,0,0.089157,False
+70,ECOW,2026-07-17,primary_source,claude-sonnet-5,1,8250,2859,0,0.067635,False
+70,ECOW,2026-07-17,confidence_judge,claude-haiku-4-5-20251001,2,7521,3840,0,0.026721,False
+70,ECOW,2026-07-17,macroq,claude-haiku-4-5-20251001,1,2162,2143,0,0.012877,False
+70,ECOW,2026-07-17,tech_judge,claude-haiku-4-5-20251001,1,3303,718,0,0.006893,False
+70,ECOW,2026-07-17,volume,claude-haiku-4-5-20251001,1,2013,532,0,0.004673,False
+70,ECOW,2026-07-17,momentum,claude-haiku-4-5-20251001,1,1450,639,0,0.004645,False
+70,ECOW,2026-07-17,trend,claude-haiku-4-5-20251001,1,1870,544,0,0.004590,False
+69,PANR LSE,2026-07-17,elicitation,claude-opus-4-8,3,54313,7079,0,0.448540,False
+69,PANR LSE,2026-07-17,review,claude-sonnet-5,3,32580,22479,0,0.434925,False
+69,PANR LSE,2026-07-17,question_definition,claude-opus-4-8,1,12578,4475,0,0.174765,False
+69,PANR LSE,2026-07-17,aggregation,claude-opus-4-8,1,21155,2078,0,0.157725,False
+69,PANR LSE,2026-07-17,risk_judge,claude-sonnet-5,1,5975,5348,0,0.098145,False
+69,PANR LSE,2026-07-17,earnings,claude-sonnet-5,1,9658,3689,0,0.084309,False
+69,PANR LSE,2026-07-17,primary_source,claude-sonnet-5,1,7704,2437,0,0.059667,False
+69,PANR LSE,2026-07-17,confidence_judge,claude-haiku-4-5-20251001,3,11335,5498,0,0.038825,False
+69,PANR LSE,2026-07-17,macroq,claude-haiku-4-5-20251001,1,2163,1931,0,0.011818,False
+68,LIN,2026-07-17,elicitation,claude-opus-4-8,2,40386,4702,0,0.319480,False
+68,LIN,2026-07-17,review,claude-sonnet-5,2,24388,9490,0,0.215514,False
+68,LIN,2026-07-17,primary_source,claude-sonnet-5,1,16983,6022,0,0.141279,False
+68,LIN,2026-07-17,question_definition,claude-opus-4-8,1,13134,2699,0,0.133145,False
+68,LIN,2026-07-17,aggregation,claude-opus-4-8,1,17281,1724,0,0.129505,False
+68,LIN,2026-07-17,risk_judge,claude-sonnet-5,1,6589,5510,0,0.102417,False
+68,LIN,2026-07-17,earnings,claude-sonnet-5,1,9335,4540,0,0.096105,False
+68,LIN,2026-07-17,confidence_judge,claude-haiku-4-5-20251001,2,7422,4220,0,0.028522,False
+68,LIN,2026-07-17,macroq,claude-haiku-4-5-20251001,1,2162,2088,0,0.012602,False
+68,LIN,2026-07-17,tech_judge,claude-haiku-4-5-20251001,1,3228,603,0,0.006243,False
+68,LIN,2026-07-17,volume,claude-haiku-4-5-20251001,1,2012,653,0,0.005277,False
+68,LIN,2026-07-17,momentum,claude-haiku-4-5-20251001,1,1449,516,0,0.004029,False
+68,LIN,2026-07-17,trend,claude-haiku-4-5-20251001,1,1869,420,0,0.003969,False
+67,PANR LSE,2026-07-17,elicitation,claude-opus-4-8,4,71730,9646,0,0.599800,False
+67,PANR LSE,2026-07-17,review,claude-sonnet-5,4,42798,23766,0,0.484884,False
+67,PANR LSE,2026-07-17,aggregation,claude-opus-4-8,1,23802,2526,0,0.182160,False
+67,PANR LSE,2026-07-17,question_definition,claude-opus-4-8,1,12578,2981,0,0.137415,False
+67,PANR LSE,2026-07-17,risk_judge,claude-sonnet-5,1,5975,7391,0,0.128790,False
+67,PANR LSE,2026-07-17,primary_source,claude-sonnet-5,1,7704,4240,0,0.086712,False
+67,PANR LSE,2026-07-17,earnings,claude-sonnet-5,1,9658,3569,0,0.082509,False
+67,PANR LSE,2026-07-17,confidence_judge,claude-haiku-4-5-20251001,4,14196,7836,0,0.053376,False
+67,PANR LSE,2026-07-17,macroq,claude-haiku-4-5-20251001,1,2162,1909,0,0.011707,False
+66,PANR,2026-07-17,risk_judge,claude-sonnet-5,1,4151,4600,0,0.081453,False
+66,PANR,2026-07-17,earnings,claude-sonnet-5,1,8612,2651,0,0.065601,False
+66,PANR,2026-07-17,question_definition,claude-opus-4-8,1,9435,356,0,0.056075,False
+66,PANR,2026-07-17,aggregation,claude-opus-4-8,1,7234,668,0,0.052870,False
+66,PANR,2026-07-17,primary_source,claude-sonnet-5,1,6507,1021,0,0.034836,False
+66,PANR,2026-07-17,macroq,claude-haiku-4-5-20251001,1,2162,1908,0,0.011702,False
+65,DBG,2026-07-17,elicitation,claude-opus-4-8,3,52615,6840,0,0.434075,False
+65,DBG,2026-07-17,review,claude-sonnet-5,3,32618,18247,0,0.371559,False
+65,DBG,2026-07-17,aggregation,claude-opus-4-8,1,20637,1924,0,0.151285,False
+65,DBG,2026-07-17,question_definition,claude-opus-4-8,1,11845,2625,0,0.124850,False
+65,DBG,2026-07-17,risk_judge,claude-sonnet-5,1,5413,5158,0,0.093609,False
+65,DBG,2026-07-17,earnings,claude-sonnet-5,1,9261,3464,0,0.079743,False
+65,DBG,2026-07-17,primary_source,claude-sonnet-5,1,7307,3048,0,0.067641,False
+65,DBG,2026-07-17,confidence_judge,claude-haiku-4-5-20251001,3,10931,6119,0,0.041526,False
+65,DBG,2026-07-17,macroq,claude-haiku-4-5-20251001,1,2162,2152,0,0.012922,False
+64,NOVT,2026-07-17,elicitation,claude-opus-4-8,4,89573,9033,0,0.673690,False
+64,NOVT,2026-07-17,review,claude-sonnet-5,4,39048,19715,0,0.412869,True
+64,NOVT,2026-07-17,aggregation,claude-opus-4-8,1,24239,2112,0,0.173995,False
+64,NOVT,2026-07-17,primary_source,claude-sonnet-5,1,17561,6829,0,0.155118,False
+64,NOVT,2026-07-17,question_definition,claude-opus-4-8,1,14328,3143,0,0.150215,False
+64,NOVT,2026-07-17,risk_judge,claude-sonnet-5,1,7449,7357,0,0.132702,False
+64,NOVT,2026-07-17,earnings,claude-sonnet-5,1,9888,4142,0,0.091794,False
+64,NOVT,2026-07-17,confidence_judge,claude-haiku-4-5-20251001,4,14480,7046,0,0.049710,False
+64,NOVT,2026-07-17,macroq,claude-haiku-4-5-20251001,1,2161,2050,0,0.012411,False
+64,NOVT,2026-07-17,tech_judge,claude-haiku-4-5-20251001,1,3280,698,0,0.006770,False
+64,NOVT,2026-07-17,volume,claude-haiku-4-5-20251001,1,2015,651,0,0.005270,False
+64,NOVT,2026-07-17,momentum,claude-haiku-4-5-20251001,1,1450,647,0,0.004685,False
+64,NOVT,2026-07-17,trend,claude-haiku-4-5-20251001,1,1873,430,0,0.004023,False
+63,FNV,2026-07-17,elicitation,claude-opus-4-8,1,19929,2505,0,0.162270,False
+63,FNV,2026-07-17,review,claude-sonnet-5,1,12409,6501,0,0.134742,False
+63,FNV,2026-07-17,question_definition,claude-opus-4-8,1,13053,1905,0,0.112890,False
+63,FNV,2026-07-17,earnings,claude-sonnet-5,1,9859,5351,0,0.109842,False
+63,FNV,2026-07-17,risk_judge,claude-sonnet-5,1,6326,5596,0,0.102918,False
+63,FNV,2026-07-17,primary_source,claude-sonnet-5,1,10835,4205,0,0.095580,False
+63,FNV,2026-07-17,aggregation,claude-opus-4-8,1,11481,1417,0,0.092830,False
+63,FNV,2026-07-17,confidence_judge,claude-haiku-4-5-20251001,1,2875,2038,0,0.013065,False
+63,FNV,2026-07-17,macroq,claude-haiku-4-5-20251001,1,2161,2135,0,0.012836,False
+63,FNV,2026-07-17,tech_judge,claude-haiku-4-5-20251001,1,3012,855,0,0.007287,False
+63,FNV,2026-07-17,momentum,claude-haiku-4-5-20251001,1,1450,765,0,0.005275,False
+63,FNV,2026-07-17,trend,claude-haiku-4-5-20251001,1,1873,547,0,0.004608,False
+63,FNV,2026-07-17,volume,claude-haiku-4-5-20251001,1,2015,405,0,0.004040,False
+62,LIN,2026-07-17,elicitation,claude-opus-4-8,4,78938,9456,0,0.631090,False
+62,LIN,2026-07-17,review,claude-sonnet-5,4,44059,21562,0,0.455607,False
+62,LIN,2026-07-17,aggregation,claude-opus-4-8,1,24917,2000,0,0.174585,False
+62,LIN,2026-07-17,primary_source,claude-sonnet-5,1,17264,7316,0,0.161532,False
+62,LIN,2026-07-17,question_definition,claude-opus-4-8,1,13422,2990,0,0.141860,False
+62,LIN,2026-07-17,risk_judge,claude-sonnet-5,1,6508,5915,0,0.108249,False
+62,LIN,2026-07-17,earnings,claude-sonnet-5,1,9616,3480,0,0.081048,False
+62,LIN,2026-07-17,confidence_judge,claude-haiku-4-5-20251001,4,15015,8649,0,0.058260,False
+62,LIN,2026-07-17,macroq,claude-haiku-4-5-20251001,1,2163,2828,0,0.016303,False
+62,LIN,2026-07-17,tech_judge,claude-haiku-4-5-20251001,1,3024,574,0,0.005894,False
+62,LIN,2026-07-17,momentum,claude-haiku-4-5-20251001,1,1449,695,0,0.004924,False
+62,LIN,2026-07-17,trend,claude-haiku-4-5-20251001,1,1869,492,0,0.004329,False
+62,LIN,2026-07-17,volume,claude-haiku-4-5-20251001,1,2011,403,0,0.004026,False
+61,LIN,2026-07-17,elicitation,claude-haiku-4-5-20251001,7,103291,30480,0,0.255691,False
+61,LIN,2026-07-17,review,claude-haiku-4-5-20251001,7,64705,25889,0,0.194150,False
+61,LIN,2026-07-17,confidence_judge,claude-haiku-4-5-20251001,7,32165,14981,0,0.107070,False
+61,LIN,2026-07-17,aggregation,claude-haiku-4-5-20251001,1,35230,3247,0,0.051465,False
+61,LIN,2026-07-17,risk_judge,claude-haiku-4-5-20251001,1,4747,7978,0,0.044637,False
+61,LIN,2026-07-17,question_definition,claude-haiku-4-5-20251001,1,9410,4800,0,0.033410,False
+61,LIN,2026-07-17,primary_source,claude-haiku-4-5-20251001,1,12297,1522,0,0.019907,False
+61,LIN,2026-07-17,earnings,claude-haiku-4-5-20251001,1,5794,2037,0,0.015979,False
+61,LIN,2026-07-17,macroq,claude-haiku-4-5-20251001,1,2150,1785,0,0.011075,False
+61,LIN,2026-07-17,tech_judge,claude-haiku-4-5-20251001,1,3128,717,0,0.006713,False
+61,LIN,2026-07-17,volume,claude-haiku-4-5-20251001,1,1907,535,0,0.004582,False
+61,LIN,2026-07-17,trend,claude-haiku-4-5-20251001,1,1869,507,0,0.004404,False
+61,LIN,2026-07-17,momentum,claude-haiku-4-5-20251001,1,1378,546,0,0.004108,False
+60,LIN,2026-07-17,question_definition,claude-opus-4-8,1,13410,3022,0,0.427800,False
+59,LIN,2026-07-16,elicitation,claude-opus-4-8,5,93311,11673,0,2.275140,False
+59,LIN,2026-07-16,review,claude-sonnet-5,5,52119,29548,0,0.599577,False
+59,LIN,2026-07-16,aggregation,claude-opus-4-8,1,27587,2100,0,0.571305,False
+59,LIN,2026-07-16,question_definition,claude-opus-4-8,1,13410,3207,0,0.441675,False
+59,LIN,2026-07-16,primary_source,claude-sonnet-5,1,16147,8000,0,0.168441,True
+59,LIN,2026-07-16,earnings,claude-sonnet-5,1,8115,6399,0,0.120330,False
+59,LIN,2026-07-16,risk_judge,claude-sonnet-5,1,6496,6124,0,0.111348,False
+59,LIN,2026-07-16,confidence_judge,claude-haiku-4-5-20251001,5,18378,9542,0,0.066088,False
+59,LIN,2026-07-16,macroq,claude-haiku-4-5-20251001,1,2150,1875,0,0.011525,False
+59,LIN,2026-07-16,tech_judge,claude-haiku-4-5-20251001,1,3159,780,0,0.007059,False
+59,LIN,2026-07-16,momentum,claude-haiku-4-5-20251001,1,1378,613,0,0.004443,False
+59,LIN,2026-07-16,trend,claude-haiku-4-5-20251001,1,1869,492,0,0.004329,False
+59,LIN,2026-07-16,volume,claude-haiku-4-5-20251001,1,1907,472,0,0.004267,False
+58,LIN,2026-07-16,elicitation,claude-haiku-4-5-20251001,2,28230,7983,0,0.068145,False
+58,LIN,2026-07-16,review,claude-haiku-4-5-20251001,2,17021,6831,0,0.051176,False
+58,LIN,2026-07-16,question_definition,claude-haiku-4-5-20251001,1,9410,7030,0,0.044560,False
+58,LIN,2026-07-16,risk_judge,claude-haiku-4-5-20251001,1,4747,6262,0,0.036057,False
+58,LIN,2026-07-16,aggregation,claude-haiku-4-5-20251001,1,14363,2400,0,0.026363,False
+58,LIN,2026-07-16,confidence_judge,claude-haiku-4-5-20251001,2,8894,2958,0,0.023684,False
+58,LIN,2026-07-16,earnings,claude-haiku-4-5-20251001,1,5794,2227,0,0.016929,False
+58,LIN,2026-07-16,primary_source,claude-haiku-4-5-20251001,1,12297,718,0,0.015887,False
+58,LIN,2026-07-16,macroq,claude-haiku-4-5-20251001,1,2151,1853,0,0.011416,False
+58,LIN,2026-07-16,tech_judge,claude-haiku-4-5-20251001,1,3087,640,0,0.006287,False
+58,LIN,2026-07-16,volume,claude-haiku-4-5-20251001,1,1907,535,0,0.004582,False
+58,LIN,2026-07-16,trend,claude-haiku-4-5-20251001,1,1869,446,0,0.004099,False
+58,LIN,2026-07-16,momentum,claude-haiku-4-5-20251001,1,1378,480,0,0.003778,False
+50,FNV,2026-07-16,elicitation,claude-haiku-4-5-20251001,7,96630,33782,0,0.265540,False
+50,FNV,2026-07-16,review,claude-haiku-4-5-20251001,7,63540,32612,0,0.226600,False
+50,FNV,2026-07-16,confidence_judge,claude-haiku-4-5-20251001,7,32156,12536,0,0.094836,False
+50,FNV,2026-07-16,aggregation,claude-haiku-4-5-20251001,1,34661,4246,0,0.055891,False
+50,FNV,2026-07-16,risk_judge,claude-haiku-4-5-20251001,1,4639,7415,0,0.041714,False
+50,FNV,2026-07-16,question_definition,claude-haiku-4-5-20251001,1,9210,4387,0,0.031145,False
+50,FNV,2026-07-16,earnings,claude-haiku-4-5-20251001,1,6021,2787,0,0.019956,False
+50,FNV,2026-07-16,macroq,claude-haiku-4-5-20251001,1,2151,1920,0,0.011751,False
+50,FNV,2026-07-16,primary_source,claude-haiku-4-5-20251001,1,6878,565,0,0.009703,False
+50,FNV,2026-07-16,volume,claude-haiku-4-5-20251001,1,1911,551,0,0.004666,False
+50,FNV,2026-07-16,trend,claude-haiku-4-5-20251001,1,1873,523,0,0.004488,False
+50,FNV,2026-07-16,momentum,claude-haiku-4-5-20251001,1,1379,619,0,0.004474,False
+50,FNV,2026-07-16,tech_judge,claude-haiku-4-5-20251001,1,0,0,0,0.000000,True
+32,FNV,2026-07-16,elicitation,claude-haiku-4-5-20251001,7,105979,29794,0,0.254949,False
+32,FNV,2026-07-16,review,claude-haiku-4-5-20251001,7,71442,28283,0,0.212857,False
+32,FNV,2026-07-16,confidence_judge,claude-haiku-4-5-20251001,7,27691,12739,0,0.091386,False
+32,FNV,2026-07-16,aggregation,claude-haiku-4-5-20251001,1,29792,3458,0,0.047082,False
+32,FNV,2026-07-16,risk_judge,claude-haiku-4-5-20251001,1,4639,7945,0,0.044364,False
+32,FNV,2026-07-16,question_definition,claude-haiku-4-5-20251001,1,9210,4165,0,0.030035,False
+32,FNV,2026-07-16,earnings,claude-haiku-4-5-20251001,1,6021,3078,0,0.021411,False
+32,FNV,2026-07-16,primary_source,claude-haiku-4-5-20251001,1,6878,1961,0,0.016683,False
+32,FNV,2026-07-16,macroq,claude-haiku-4-5-20251001,1,2151,1953,0,0.011916,False
+32,FNV,2026-07-16,tech_judge,claude-haiku-4-5-20251001,1,3080,860,0,0.007380,False
+32,FNV,2026-07-16,trend,claude-haiku-4-5-20251001,1,1873,568,0,0.004713,False
+32,FNV,2026-07-16,volume,claude-haiku-4-5-20251001,1,1911,502,0,0.004421,False
+32,FNV,2026-07-16,momentum,claude-haiku-4-5-20251001,1,1379,562,0,0.004189,False
+31,LIN,2026-07-16,elicitation,claude-haiku-4-5-20251001,2,30324,7496,0,0.067804,False
+31,LIN,2026-07-16,review,claude-haiku-4-5-20251001,2,19002,6798,0,0.052992,False
+31,LIN,2026-07-16,aggregation,claude-haiku-4-5-20251001,1,14438,7659,0,0.052733,False
+31,LIN,2026-07-16,question_definition,claude-haiku-4-5-20251001,1,9410,7816,0,0.048490,False
+31,LIN,2026-07-16,risk_judge,claude-haiku-4-5-20251001,1,4747,6374,0,0.036617,False
+31,LIN,2026-07-16,primary_source,claude-haiku-4-5-20251001,1,12297,3009,0,0.027342,False
+31,LIN,2026-07-16,confidence_judge,claude-haiku-4-5-20251001,2,8761,3088,0,0.024201,False
+31,LIN,2026-07-16,earnings,claude-haiku-4-5-20251001,1,5794,2476,0,0.018174,False
+31,LIN,2026-07-16,macroq,claude-haiku-4-5-20251001,1,2151,1759,0,0.010946,False
+31,LIN,2026-07-16,tech_judge,claude-haiku-4-5-20251001,1,3126,831,0,0.007281,False
+31,LIN,2026-07-16,trend,claude-haiku-4-5-20251001,1,1869,545,0,0.004594,False
+31,LIN,2026-07-16,momentum,claude-haiku-4-5-20251001,1,1378,632,0,0.004538,False
+31,LIN,2026-07-16,volume,claude-haiku-4-5-20251001,1,1907,504,0,0.004427,False
+30,FNV,2026-07-16,elicitation,claude-haiku-4-5-20251001,7,102257,31067,0,0.257592,False
+30,FNV,2026-07-16,review,claude-haiku-4-5-20251001,7,69346,28334,0,0.211016,False
+30,FNV,2026-07-16,confidence_judge,claude-haiku-4-5-20251001,7,32983,14009,0,0.103028,False
+30,FNV,2026-07-16,aggregation,claude-haiku-4-5-20251001,1,35086,8775,0,0.078961,False
+30,FNV,2026-07-16,risk_judge,claude-haiku-4-5-20251001,1,4639,6508,0,0.037179,False
+30,FNV,2026-07-16,question_definition,claude-haiku-4-5-20251001,1,9210,4039,0,0.029405,False
+30,FNV,2026-07-16,earnings,claude-haiku-4-5-20251001,1,6021,2716,0,0.019601,False
+30,FNV,2026-07-16,macroq,claude-haiku-4-5-20251001,1,2151,2287,0,0.013586,False
+30,FNV,2026-07-16,primary_source,claude-haiku-4-5-20251001,1,6878,826,0,0.011008,False
+30,FNV,2026-07-16,tech_judge,claude-haiku-4-5-20251001,1,3118,786,0,0.007048,False
+30,FNV,2026-07-16,volume,claude-haiku-4-5-20251001,1,1911,665,0,0.005236,False
+30,FNV,2026-07-16,momentum,claude-haiku-4-5-20251001,1,1379,692,0,0.004839,False
+30,FNV,2026-07-16,trend,claude-haiku-4-5-20251001,1,1873,528,0,0.004513,False
+29,FNV,2026-07-16,elicitation,claude-haiku-4-5-20251001,7,103076,34532,0,0.275736,False
+29,FNV,2026-07-16,review,claude-haiku-4-5-20251001,7,70349,33383,0,0.237264,False
+29,FNV,2026-07-16,confidence_judge,claude-haiku-4-5-20251001,7,32266,13372,0,0.099126,False
+29,FNV,2026-07-16,aggregation,claude-haiku-4-5-20251001,1,34531,9505,0,0.082056,False
+29,FNV,2026-07-16,risk_judge,claude-haiku-4-5-20251001,1,4639,8576,0,0.047519,False
+29,FNV,2026-07-16,question_definition,claude-haiku-4-5-20251001,1,9210,4214,0,0.030280,False
+29,FNV,2026-07-16,earnings,claude-haiku-4-5-20251001,1,6021,3759,0,0.024816,False
+29,FNV,2026-07-16,macroq,claude-haiku-4-5-20251001,1,2151,2094,0,0.012621,False
+29,FNV,2026-07-16,primary_source,claude-haiku-4-5-20251001,1,6878,617,0,0.009963,False
+29,FNV,2026-07-16,tech_judge,claude-haiku-4-5-20251001,1,3075,765,0,0.006900,False
+29,FNV,2026-07-16,momentum,claude-haiku-4-5-20251001,1,1379,851,0,0.005634,False
+29,FNV,2026-07-16,volume,claude-haiku-4-5-20251001,1,1911,619,0,0.005006,False
+29,FNV,2026-07-16,trend,claude-haiku-4-5-20251001,1,1873,458,0,0.004163,False
+28,NOVT,2026-07-16,elicitation,claude-haiku-4-5-20251001,7,109145,32751,0,0.272900,False
+28,NOVT,2026-07-16,review,claude-haiku-4-5-20251001,7,69977,26317,0,0.201562,False
+28,NOVT,2026-07-16,aggregation,claude-haiku-4-5-20251001,1,34740,15420,0,0.111840,False
+28,NOVT,2026-07-16,confidence_judge,claude-haiku-4-5-20251001,7,32621,13873,0,0.101986,False
+28,NOVT,2026-07-16,risk_judge,claude-haiku-4-5-20251001,1,5354,8099,0,0.045849,False
+28,NOVT,2026-07-16,question_definition,claude-haiku-4-5-20251001,1,10011,4373,0,0.031876,False
+28,NOVT,2026-07-16,primary_source,claude-haiku-4-5-20251001,1,12457,2504,0,0.024977,False
+28,NOVT,2026-07-16,earnings,claude-haiku-4-5-20251001,1,6005,2261,0,0.017310,False
+28,NOVT,2026-07-16,macroq,claude-haiku-4-5-20251001,1,2150,1669,0,0.010495,False
+28,NOVT,2026-07-16,tech_judge,claude-haiku-4-5-20251001,1,2571,691,0,0.006026,False
+28,NOVT,2026-07-16,volume,claude-haiku-4-5-20251001,1,1911,576,0,0.004791,False
+28,NOVT,2026-07-16,trend,claude-haiku-4-5-20251001,1,1873,486,0,0.004303,False
+28,NOVT,2026-07-16,momentum,claude-haiku-4-5-20251001,1,1379,583,0,0.004294,False
+27,NOVT,2026-07-16,elicitation,claude-haiku-4-5-20251001,7,114487,30632,0,0.267647,False
+27,NOVT,2026-07-16,review,claude-haiku-4-5-20251001,7,75011,24174,0,0.195881,False
+27,NOVT,2026-07-16,aggregation,claude-haiku-4-5-20251001,1,33556,13640,0,0.101756,False
+27,NOVT,2026-07-16,confidence_judge,claude-haiku-4-5-20251001,7,31374,11802,0,0.090384,False
+27,NOVT,2026-07-16,risk_judge,claude-haiku-4-5-20251001,1,5354,8502,0,0.047864,False
+27,NOVT,2026-07-16,question_definition,claude-haiku-4-5-20251001,1,10011,4188,0,0.030951,False
+27,NOVT,2026-07-16,primary_source,claude-haiku-4-5-20251001,1,12457,1721,0,0.021062,False
+27,NOVT,2026-07-16,earnings,claude-haiku-4-5-20251001,1,6005,2680,0,0.019405,False
+27,NOVT,2026-07-16,macroq,claude-haiku-4-5-20251001,1,2151,2144,0,0.012871,False
+27,NOVT,2026-07-16,tech_judge,claude-haiku-4-5-20251001,1,2583,666,0,0.005913,False
+27,NOVT,2026-07-16,volume,claude-haiku-4-5-20251001,1,1912,664,0,0.005232,False
+27,NOVT,2026-07-16,momentum,claude-haiku-4-5-20251001,1,1379,644,0,0.004599,False
+27,NOVT,2026-07-16,trend,claude-haiku-4-5-20251001,1,1873,467,0,0.004208,False
+26,NTR,2026-07-16,aggregation,claude-haiku-4-5-20251001,1,13861,12145,0,0.074586,False
+26,NTR,2026-07-16,elicitation,claude-haiku-4-5-20251001,2,26692,8578,0,0.069582,False
+26,NTR,2026-07-16,review,claude-haiku-4-5-20251001,2,18525,7328,0,0.055165,False
+26,NTR,2026-07-16,risk_judge,claude-haiku-4-5-20251001,1,4083,6937,0,0.038768,False
+26,NTR,2026-07-16,question_definition,claude-haiku-4-5-20251001,1,8356,5875,0,0.037731,False
+26,NTR,2026-07-16,confidence_judge,claude-haiku-4-5-20251001,2,8532,3924,0,0.028152,False
+26,NTR,2026-07-16,earnings,claude-haiku-4-5-20251001,1,5678,2192,0,0.016638,False
+26,NTR,2026-07-16,primary_source,claude-haiku-4-5-20251001,1,6057,1648,0,0.014297,False
+26,NTR,2026-07-16,macroq,claude-haiku-4-5-20251001,1,2149,2129,0,0.012794,False
+26,NTR,2026-07-16,tech_judge,claude-haiku-4-5-20251001,1,2298,680,0,0.005698,False
+26,NTR,2026-07-16,momentum,claude-haiku-4-5-20251001,1,1379,702,0,0.004889,False
+26,NTR,2026-07-16,volume,claude-haiku-4-5-20251001,1,1908,450,0,0.004158,False
+26,NTR,2026-07-16,trend,claude-haiku-4-5-20251001,1,1870,435,0,0.004045,False
+25,LIN,2026-07-15,elicitation,claude-haiku-4-5-20251001,4,59238,16106,0,0.139768,False
+25,LIN,2026-07-15,review,claude-haiku-4-5-20251001,4,36147,12671,0,0.099502,False
+25,LIN,2026-07-15,aggregation,claude-haiku-4-5-20251001,1,21234,10299,0,0.072729,False
+25,LIN,2026-07-15,confidence_judge,claude-haiku-4-5-20251001,4,17132,7485,0,0.054557,False
+25,LIN,2026-07-15,question_definition,claude-haiku-4-5-20251001,1,9410,7614,0,0.047480,False
+25,LIN,2026-07-15,risk_judge,claude-haiku-4-5-20251001,1,4747,7915,0,0.044322,False
+25,LIN,2026-07-15,primary_source,claude-haiku-4-5-20251001,1,12297,560,0,0.015097,False
+25,LIN,2026-07-15,earnings,claude-haiku-4-5-20251001,1,5794,1827,0,0.014929,False
+25,LIN,2026-07-15,macroq,claude-haiku-4-5-20251001,1,2149,1989,0,0.012094,False
+25,LIN,2026-07-15,tech_judge,claude-haiku-4-5-20251001,1,2503,672,0,0.005863,False
+25,LIN,2026-07-15,volume,claude-haiku-4-5-20251001,1,1907,528,0,0.004547,False
+25,LIN,2026-07-15,trend,claude-haiku-4-5-20251001,1,1869,511,0,0.004424,False
+25,LIN,2026-07-15,momentum,claude-haiku-4-5-20251001,1,1378,573,0,0.004243,False
+24,LIN,2026-07-15,review,claude-haiku-4-5-20251001,7,59795,37521,0,0.247400,False
+24,LIN,2026-07-15,elicitation,claude-haiku-4-5-20251001,7,99161,29293,0,0.245626,False
+24,LIN,2026-07-15,aggregation,claude-haiku-4-5-20251001,1,29685,13408,0,0.096725,False
+24,LIN,2026-07-15,confidence_judge,claude-haiku-4-5-20251001,7,28503,13350,0,0.095253,False
+24,LIN,2026-07-15,risk_judge,claude-haiku-4-5-20251001,1,4747,6540,0,0.037447,False
+24,LIN,2026-07-15,question_definition,claude-haiku-4-5-20251001,1,9410,4160,0,0.030210,False
+24,LIN,2026-07-15,earnings,claude-haiku-4-5-20251001,1,5794,1945,0,0.015519,False
+24,LIN,2026-07-15,primary_source,claude-haiku-4-5-20251001,1,12297,597,0,0.015282,False
+24,LIN,2026-07-15,macroq,claude-haiku-4-5-20251001,1,2149,1871,0,0.011504,False
+24,LIN,2026-07-15,trend,claude-haiku-4-5-20251001,1,1869,584,0,0.004789,False
+24,LIN,2026-07-15,tech_judge,claude-haiku-4-5-20251001,1,2265,483,0,0.004680,False
+24,LIN,2026-07-15,momentum,claude-haiku-4-5-20251001,1,1378,588,0,0.004318,False
+24,LIN,2026-07-15,volume,claude-haiku-4-5-20251001,1,1907,382,0,0.003817,False
+23,MSI LSE,2026-07-15,elicitation,claude-haiku-4-5-20251001,2,34582,7378,0,0.071472,False
+23,MSI LSE,2026-07-15,aggregation,claude-haiku-4-5-20251001,1,12122,9861,0,0.061427,False
+23,MSI LSE,2026-07-15,review,claude-haiku-4-5-20251001,2,18759,8437,0,0.060944,False
+23,MSI LSE,2026-07-15,question_definition,claude-haiku-4-5-20251001,1,10367,7076,0,0.045747,False
+23,MSI LSE,2026-07-15,risk_judge,claude-haiku-4-5-20251001,1,5306,5420,0,0.032406,False
+23,MSI LSE,2026-07-15,confidence_judge,claude-haiku-4-5-20251001,4,5857,4856,0,0.030137,True
+23,MSI LSE,2026-07-15,earnings,claude-haiku-4-5-20251001,1,6308,2959,0,0.021103,False
+23,MSI LSE,2026-07-15,primary_source,claude-haiku-4-5-20251001,1,5081,2440,0,0.017281,False
+23,MSI LSE,2026-07-15,macroq,claude-haiku-4-5-20251001,1,2149,2219,0,0.013244,False
+22,MSI LSE,2026-07-15,elicitation,claude-haiku-4-5-20251001,7,112167,18502,0,0.204677,False
+22,MSI LSE,2026-07-15,review,claude-haiku-4-5-20251001,7,65650,14025,0,0.135775,False
+22,MSI LSE,2026-07-15,aggregation,claude-haiku-4-5-20251001,1,39924,18907,0,0.134459,False
+22,MSI LSE,2026-07-15,confidence_judge,claude-haiku-4-5-20251001,7,37570,14597,0,0.110555,False
+22,MSI LSE,2026-07-15,question_definition,claude-haiku-4-5-20251001,1,10122,4405,0,0.032147,False
+22,MSI LSE,2026-07-15,risk_judge,claude-haiku-4-5-20251001,1,5071,4639,0,0.028266,False
+22,MSI LSE,2026-07-15,primary_source,claude-haiku-4-5-20251001,1,4964,1816,0,0.014044,False
+22,MSI LSE,2026-07-15,earnings,claude-haiku-4-5-20251001,1,6169,1467,0,0.013504,False
+22,MSI LSE,2026-07-15,macroq,claude-haiku-4-5-20251001,1,2055,2033,0,0.012220,False
+21,MSI LSE,2026-07-14,elicitation,claude-haiku-4-5-20251001,7,121928,20020,0,0.222028,False
+21,MSI LSE,2026-07-14,review,claude-haiku-4-5-20251001,7,72918,15410,0,0.149968,False
+21,MSI LSE,2026-07-14,confidence_judge,claude-haiku-4-5-20251001,7,40557,13722,0,0.109167,False
+21,MSI LSE,2026-07-14,aggregation,claude-haiku-4-5-20251001,1,44612,4869,0,0.068957,False
+21,MSI LSE,2026-07-14,question_definition,claude-haiku-4-5-20251001,1,10122,4519,0,0.032717,False
+21,MSI LSE,2026-07-14,risk_judge,claude-haiku-4-5-20251001,1,5071,2416,0,0.017151,False
+21,MSI LSE,2026-07-14,primary_source,claude-haiku-4-5-20251001,1,4964,2260,0,0.016264,False
+21,MSI LSE,2026-07-14,earnings,claude-haiku-4-5-20251001,1,6169,1689,0,0.014614,False
+21,MSI LSE,2026-07-14,macroq,claude-haiku-4-5-20251001,1,2056,1992,0,0.012016,False
+20,ECOW,2026-07-14,elicitation,claude-haiku-4-5-20251001,4,51226,9708,0,0.099766,False
+20,ECOW,2026-07-14,aggregation,claude-haiku-4-5-20251001,1,23815,14838,0,0.098005,False
+20,ECOW,2026-07-14,review,claude-haiku-4-5-20251001,4,35458,7254,0,0.071728,False
+20,ECOW,2026-07-14,confidence_judge,claude-haiku-4-5-20251001,4,20316,8032,0,0.060476,False
+20,ECOW,2026-07-14,risk_judge,claude-haiku-4-5-20251001,1,3724,3933,0,0.023389,False
+20,ECOW,2026-07-14,question_definition,claude-haiku-4-5-20251001,1,7954,2448,0,0.020194,False
+20,ECOW,2026-07-14,macroq,claude-haiku-4-5-20251001,1,2056,1714,0,0.010626,False
+20,ECOW,2026-07-14,primary_source,claude-haiku-4-5-20251001,1,4171,1081,0,0.009576,False
+20,ECOW,2026-07-14,earnings,claude-haiku-4-5-20251001,1,5376,551,0,0.008131,False
+20,ECOW,2026-07-14,tech_judge,claude-haiku-4-5-20251001,1,2504,368,0,0.004344,False
+20,ECOW,2026-07-14,volume,claude-haiku-4-5-20251001,1,1745,298,0,0.003235,False
+20,ECOW,2026-07-14,trend,claude-haiku-4-5-20251001,1,1708,280,0,0.003108,False
+20,ECOW,2026-07-14,momentum,claude-haiku-4-5-20251001,1,1285,250,0,0.002535,False
+19,GCC,2026-07-14,question_definition,claude-haiku-4-5-20251001,1,7742,951,0,0.012497,False
+19,GCC,2026-07-14,risk_judge,claude-haiku-4-5-20251001,1,3568,1335,0,0.010243,False
+19,GCC,2026-07-14,macroq,claude-haiku-4-5-20251001,1,2057,1561,0,0.009862,False
+19,GCC,2026-07-14,aggregation,claude-haiku-4-5-20251001,1,5069,666,0,0.008399,False
+19,GCC,2026-07-14,primary_source,claude-haiku-4-5-20251001,1,4094,791,0,0.008049,False
+19,GCC,2026-07-14,earnings,claude-haiku-4-5-20251001,1,5299,435,0,0.007474,False
+19,GCC,2026-07-14,tech_judge,claude-haiku-4-5-20251001,1,2639,398,0,0.004629,False
+19,GCC,2026-07-14,trend,claude-haiku-4-5-20251001,1,1704,406,0,0.003734,False
+19,GCC,2026-07-14,volume,claude-haiku-4-5-20251001,1,1744,339,0,0.003439,False
+19,GCC,2026-07-14,momentum,claude-haiku-4-5-20251001,1,1284,263,0,0.002599,False
+18,ECOW,2026-07-14,elicitation,claude-haiku-4-5-20251001,5,63096,14053,0,0.133361,False
+18,ECOW,2026-07-14,review,claude-haiku-4-5-20251001,5,45642,10684,0,0.099062,False
+18,ECOW,2026-07-14,confidence_judge,claude-haiku-4-5-20251001,5,27045,9350,0,0.073795,False
+18,ECOW,2026-07-14,aggregation,claude-haiku-4-5-20251001,1,30472,5752,0,0.059232,False
+18,ECOW,2026-07-14,question_definition,claude-haiku-4-5-20251001,1,7954,2774,0,0.021824,False
+18,ECOW,2026-07-14,risk_judge,claude-haiku-4-5-20251001,1,3724,2593,0,0.016689,False
+18,ECOW,2026-07-14,macroq,claude-haiku-4-5-20251001,1,2057,1792,0,0.011017,False
+18,ECOW,2026-07-14,primary_source,claude-haiku-4-5-20251001,1,4171,911,0,0.008726,False
+18,ECOW,2026-07-14,earnings,claude-haiku-4-5-20251001,1,5376,566,0,0.008206,False
+18,ECOW,2026-07-14,tech_judge,claude-haiku-4-5-20251001,1,2526,343,0,0.004241,False
+18,ECOW,2026-07-14,volume,claude-haiku-4-5-20251001,1,1745,301,0,0.003250,False
+18,ECOW,2026-07-14,trend,claude-haiku-4-5-20251001,1,1708,297,0,0.003193,False
+18,ECOW,2026-07-14,momentum,claude-haiku-4-5-20251001,1,1285,250,0,0.002535,False
+17,GCC,2026-07-14,macroq,claude-haiku-4-5-20251001,1,2055,2142,0,0.012765,False
+17,GCC,2026-07-14,question_definition,claude-haiku-4-5-20251001,1,7742,935,0,0.012417,False
+17,GCC,2026-07-14,risk_judge,claude-haiku-4-5-20251001,1,3568,1456,0,0.010848,False
+17,GCC,2026-07-14,aggregation,claude-haiku-4-5-20251001,1,5219,1051,0,0.010474,False
+17,GCC,2026-07-14,primary_source,claude-haiku-4-5-20251001,1,4094,770,0,0.007944,False
+17,GCC,2026-07-14,earnings,claude-haiku-4-5-20251001,1,5299,455,0,0.007574,False
+17,GCC,2026-07-14,tech_judge,claude-haiku-4-5-20251001,1,2537,335,0,0.004212,False
+17,GCC,2026-07-14,trend,claude-haiku-4-5-20251001,1,1704,322,0,0.003314,False
+17,GCC,2026-07-14,volume,claude-haiku-4-5-20251001,1,1744,289,0,0.003189,False
+17,GCC,2026-07-14,momentum,claude-haiku-4-5-20251001,1,1284,253,0,0.002549,False
+16,PANR LSE,2026-07-14,elicitation,claude-haiku-4-5-20251001,7,100457,20117,0,0.201042,False
+16,PANR LSE,2026-07-14,review,claude-haiku-4-5-20251001,7,68383,15712,0,0.146943,False
+16,PANR LSE,2026-07-14,confidence_judge,claude-haiku-4-5-20251001,7,37186,13198,0,0.103176,False
+16,PANR LSE,2026-07-14,aggregation,claude-haiku-4-5-20251001,1,43757,6387,0,0.075692,False
+16,PANR LSE,2026-07-14,question_definition,claude-haiku-4-5-20251001,1,8566,3988,0,0.028506,False
+16,PANR LSE,2026-07-14,risk_judge,claude-haiku-4-5-20251001,1,4116,2985,0,0.019041,False
+16,PANR LSE,2026-07-14,primary_source,claude-haiku-4-5-20251001,1,4479,1255,0,0.010754,False
+16,PANR LSE,2026-07-14,macroq,claude-haiku-4-5-20251001,1,2057,1533,0,0.009722,False
+16,PANR LSE,2026-07-14,earnings,claude-haiku-4-5-20251001,1,5684,668,0,0.009024,False
+15,MSI LSE,2026-07-14,elicitation,claude-haiku-4-5-20251001,7,116186,20933,0,0.220851,False
+15,MSI LSE,2026-07-14,review,claude-haiku-4-5-20251001,7,68281,15579,0,0.146176,False
+15,MSI LSE,2026-07-14,confidence_judge,claude-haiku-4-5-20251001,7,40206,14757,0,0.113991,False
+15,MSI LSE,2026-07-14,aggregation,claude-haiku-4-5-20251001,1,45701,5547,0,0.073436,False
+15,MSI LSE,2026-07-14,question_definition,claude-haiku-4-5-20251001,1,10122,4611,0,0.033177,False
+15,MSI LSE,2026-07-14,risk_judge,claude-haiku-4-5-20251001,1,5071,3927,0,0.024706,False
+15,MSI LSE,2026-07-14,primary_source,claude-haiku-4-5-20251001,1,4964,2038,0,0.015154,False
+15,MSI LSE,2026-07-14,macroq,claude-haiku-4-5-20251001,1,2057,2069,0,0.012402,False
+15,MSI LSE,2026-07-14,earnings,claude-haiku-4-5-20251001,1,6169,883,0,0.010584,False
+14,FNV,2026-07-14,aggregation,claude-opus-4-8,1,19709,2786,0,0.504585,False
+14,FNV,2026-07-14,elicitation,claude-sonnet-5,3,57685,16404,0,0.419115,False
+14,FNV,2026-07-14,question_definition,claude-opus-4-8,1,12682,2746,0,0.396180,False
+14,FNV,2026-07-14,review,claude-sonnet-5,3,36361,17663,0,0.374028,False
+14,FNV,2026-07-14,macroq,claude-opus-4-8,1,2615,2275,0,0.209850,False
+14,FNV,2026-07-14,risk_judge,claude-sonnet-5,1,6000,5186,0,0.095790,False
+14,FNV,2026-07-14,confidence_judge,claude-haiku-4-5-20251001,3,11019,4474,0,0.033389,False
+14,FNV,2026-07-14,earnings,claude-haiku-4-5-20251001,1,5887,1042,0,0.011097,False
+14,FNV,2026-07-14,primary_source,claude-haiku-4-5-20251001,1,5283,752,0,0.009043,False
+14,FNV,2026-07-14,tech_judge,claude-haiku-4-5-20251001,1,2543,399,0,0.004538,False
+14,FNV,2026-07-14,volume,claude-haiku-4-5-20251001,1,1747,314,0,0.003317,False
+14,FNV,2026-07-14,trend,claude-haiku-4-5-20251001,1,1711,319,0,0.003306,False
+14,FNV,2026-07-14,momentum,claude-haiku-4-5-20251001,1,1285,228,0,0.002425,False
+13,FNV,2026-07-14,question_definition,claude-opus-4-8,1,12682,1964,0,0.337530,False
+13,FNV,2026-07-14,aggregation,claude-opus-4-8,1,10100,2189,0,0.315675,False
+13,FNV,2026-07-14,macroq,claude-opus-4-8,1,2614,1984,0,0.188010,False
+13,FNV,2026-07-14,elicitation,claude-sonnet-5,1,19203,8660,0,0.187509,False
+13,FNV,2026-07-14,review,claude-sonnet-5,1,12096,3403,0,0.087333,False
+13,FNV,2026-07-14,risk_judge,claude-sonnet-5,1,5962,4109,0,0.079521,False
+13,FNV,2026-07-14,earnings,claude-haiku-4-5-20251001,1,5887,1187,0,0.011822,False
+13,FNV,2026-07-14,confidence_judge,claude-haiku-4-5-20251001,1,2903,1280,0,0.009303,False
+13,FNV,2026-07-14,primary_source,claude-haiku-4-5-20251001,1,5283,714,0,0.008853,False
+13,FNV,2026-07-14,tech_judge,claude-haiku-4-5-20251001,1,2516,401,0,0.004521,False
+13,FNV,2026-07-14,volume,claude-haiku-4-5-20251001,1,1747,318,0,0.003337,False
+13,FNV,2026-07-14,trend,claude-haiku-4-5-20251001,1,1711,300,0,0.003211,False
+13,FNV,2026-07-14,momentum,claude-haiku-4-5-20251001,1,1285,221,0,0.002390,False
+11,MSI LSE,2026-07-13,aggregation,claude-opus-4-8,1,25794,2937,0,0.607185,False
+11,MSI LSE,2026-07-13,elicitation,claude-sonnet-5,4,70825,20224,0,0.515835,False
+11,MSI LSE,2026-07-13,question_definition,claude-opus-4-8,1,14325,3228,0,0.456975,False
+11,MSI LSE,2026-07-13,review,claude-sonnet-5,4,37611,19152,0,0.400113,False
+11,MSI LSE,2026-07-13,macroq,claude-opus-4-8,1,2615,2127,0,0.198750,False
+11,MSI LSE,2026-07-13,risk_judge,claude-sonnet-5,1,6883,6374,0,0.116259,False
+11,MSI LSE,2026-07-13,confidence_judge,claude-haiku-4-5-20251001,4,14866,6436,0,0.047046,False
+11,MSI LSE,2026-07-13,earnings,claude-haiku-4-5-20251001,1,6169,1572,0,0.014029,False
+11,MSI LSE,2026-07-13,primary_source,claude-haiku-4-5-20251001,1,3352,391,0,0.005307,False
+10,MSI LSE,2026-07-13,question_definition,claude-opus-4-8,1,14325,3182,0,0.453525,False
+10,MSI LSE,2026-07-13,macroq,claude-opus-4-8,1,2615,2260,0,0.208725,False
+10,MSI LSE,2026-07-13,risk_judge,claude-sonnet-5,1,6883,6737,0,0.121704,False
+7,LIN,2026-07-13,aggregation,claude-opus-4-8,3,37257,8310,0,1.182105,True
+7,LIN,2026-07-13,elicitation,claude-sonnet-5,4,73429,17167,0,0.477792,False
+7,LIN,2026-07-13,review,claude-sonnet-5,4,40749,21945,0,0.451422,False
+7,LIN,2026-07-13,question_definition,claude-opus-4-8,1,13062,3230,0,0.438180,False
+7,LIN,2026-07-13,risk_judge,claude-sonnet-5,3,19030,15580,0,0.290790,False
+7,LIN,2026-07-13,macroq,claude-opus-4-8,1,2613,1922,0,0.183345,False
+7,LIN,2026-07-13,confidence_judge,claude-haiku-4-5-20251001,4,14367,5710,0,0.042917,False
+7,LIN,2026-07-13,primary_source,claude-haiku-4-5-20251001,1,11470,1042,0,0.016680,False
+7,LIN,2026-07-13,earnings,claude-haiku-4-5-20251001,1,5655,1743,0,0.014370,False
+7,LIN,2026-07-13,tech_judge,claude-haiku-4-5-20251001,1,2522,569,0,0.005367,False
+7,LIN,2026-07-13,volume,claude-haiku-4-5-20251001,1,1745,317,0,0.003330,False
+7,LIN,2026-07-13,trend,claude-haiku-4-5-20251001,1,1709,268,0,0.003049,False
+7,LIN,2026-07-13,momentum,claude-haiku-4-5-20251001,1,1290,269,0,0.002635,False
+6,LIN,2026-07-13,elicitation,claude-haiku-4-5-20251001,7,101865,23368,0,0.218705,False
+6,LIN,2026-07-13,review,claude-haiku-4-5-20251001,7,64884,14920,0,0.139484,False
+6,LIN,2026-07-13,confidence_judge,claude-haiku-4-5-20251001,7,41224,13356,0,0.108004,False
+6,LIN,2026-07-13,aggregation,claude-haiku-4-5-20251001,1,45066,8096,0,0.085546,False
+6,LIN,2026-07-13,question_definition,claude-haiku-4-5-20251001,1,9165,4998,0,0.034155,False
+6,LIN,2026-07-13,risk_judge,claude-haiku-4-5-20251001,1,4512,4096,0,0.024992,False
+6,LIN,2026-07-13,primary_source,claude-haiku-4-5-20251001,1,11470,1445,0,0.018695,False
+6,LIN,2026-07-13,earnings,claude-haiku-4-5-20251001,1,5655,1756,0,0.014435,False
+6,LIN,2026-07-13,macroq,claude-haiku-4-5-20251001,1,2057,2048,0,0.012297,False
+6,LIN,2026-07-13,tech_judge,claude-haiku-4-5-20251001,1,2576,398,0,0.004566,False
+6,LIN,2026-07-13,trend,claude-haiku-4-5-20251001,1,1709,336,0,0.003389,False
+6,LIN,2026-07-13,volume,claude-haiku-4-5-20251001,1,1746,300,0,0.003246,False
+6,LIN,2026-07-13,momentum,claude-haiku-4-5-20251001,1,1290,263,0,0.002605,False
+5,LIN,2026-07-13,question_definition,claude-sonnet-5,1,12774,14121,0,0.250137,False
+4,LIN,2026-07-13,question_definition,claude-sonnet-5,1,12774,8096,0,0.159762,True
+3,LIN,2026-07-13,question_definition,claude-haiku-4-5-20251001,1,8975,3926,0,0.028605,False
+2,ALGM,2026-07-12,question_definition,claude-haiku-4-5-20251001,1,2737,1024,0,0.007857,False
+1,ALGM,2026-07-12,macroq,claude-haiku-4-5-20251001,1,2057,1675,0,0.010432,False
+1,ALGM,2026-07-12,risk_judge,claude-haiku-4-5-20251001,1,1305,1717,0,0.009890,False
+1,ALGM,2026-07-12,primary_source,claude-haiku-4-5-20251001,1,2069,1300,0,0.008569,False
+1,ALGM,2026-07-12,question_definition,claude-haiku-4-5-20251001,1,2737,1007,0,0.007772,False
+1,ALGM,2026-07-12,earnings,claude-haiku-4-5-20251001,1,4122,443,0,0.006337,False
+1,ALGM,2026-07-12,tech_judge,claude-haiku-4-5-20251001,1,2478,480,0,0.004878,False
+1,ALGM,2026-07-12,trend,claude-haiku-4-5-20251001,1,1708,298,0,0.003198,False
+1,ALGM,2026-07-12,volume,claude-haiku-4-5-20251001,1,1744,269,0,0.003089,False
+1,ALGM,2026-07-12,momentum,claude-haiku-4-5-20251001,1,1285,236,0,0.002465,False
