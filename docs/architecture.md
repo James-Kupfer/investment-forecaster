@@ -300,6 +300,8 @@ Every LLM-calling agent subclasses this (`TriageAgent` doesn't — it makes no A
 - `claude-sonnet-5`: 3.00 / 15.00 / 0.30
 - `claude-haiku-4-5-20251001`: 1.00 / 5.00 / 0.10
 - `claude-opus-5`: 5.00 / 25.00 / 0.50
+- `claude-sonnet-5-5`: 2.00 / 10.00 / 0.20
+- `claude-opus-5-5`: 4.00 / 20.00 / 0.20
 
 The active model per agent is defined in `personas/model_config.py` — check that file for the current assignment; it's been observed running all-Haiku during test phases with the intended production model commented out alongside it, so don't assume the docstrings above are the live config.
 

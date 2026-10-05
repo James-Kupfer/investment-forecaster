@@ -17,6 +17,9 @@ _PRICING: dict[str, tuple[float, float, float]] = {
     # Opus 5: $5 in / $25 out per MTok (was previously entered as $15/$75 —
     # ~3x too high, which overstated every logged Opus call cost).
     'claude-opus-5':              (5.00, 25.00, 0.50),
+    # 5.5 generation: Opus $4 / $20, Sonnet $2 / $10, cache reads $0.20 for both.
+    'claude-opus-5-5':            (4.00, 20.00, 0.20),
+    'claude-sonnet-5-5':          (2.00, 10.00, 0.20),
 }
 
 
@@ -117,8 +120,15 @@ class BaseAgent(ABC):
             params: dict = {'model': self.model, 'max_tokens': max_tokens, 'messages': messages}
             if system:
                 params['system'] = system
-            if output_config:
-                params['output_config'] = output_config
+            # Effort is merged with any structured-output config the caller
+            # passes (both live under output_config); the caller's own keys win.
+            from personas.model_config import AGENT_EFFORT
+            effort = AGENT_EFFORT.get(self.agent_id)
+            if effort or output_config:
+                params['output_config'] = {
+                    **({'effort': effort} if effort else {}),
+                    **(output_config or {}),
+                }
             # Streaming, not .create() -- the SDK refuses non-streaming requests
             # it estimates could exceed 10 minutes (observed live once max_tokens
             # was raised on Opus: "Streaming is required for operations that may
