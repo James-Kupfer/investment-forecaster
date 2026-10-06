@@ -1,12 +1,24 @@
+import logging
 import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Optional
 
 import anthropic
+import httpx
 
 import forecaster.credentials  # noqa: F401 (loads ANTHROPIC_API_KEY into os.environ)
 from forecaster.db import db_cursor
+
+logger = logging.getLogger(__name__)
+
+# The SDK default is a flat 600s read timeout. For a streamed response that is the
+# longest allowed silence between chunks, so a dead connection sat for ~10 minutes
+# per attempt before the SDK's retry kicked in (three calls on AQMS each took ~17
+# minutes this way, which looked like a hang). A healthy stream sends data/pings
+# continuously, so a 180s gap means the connection is stalled, not that the model is
+# thinking. Total call length is unaffected -- only the silent gap is bounded.
+_CLIENT_TIMEOUT = httpx.Timeout(connect=15.0, read=180.0, write=60.0, pool=60.0)
 
 # (input_per_mtok, output_per_mtok, cached_input_per_mtok)
 # Rates are Anthropic's current published per-MTok prices; cached input is the
@@ -65,7 +77,7 @@ class BaseAgent(ABC):
                 f'personas/model_config.py — add it before instantiating this agent.'
             )
         self.model = AGENT_MODELS[self.agent_id]
-        self.client = anthropic.Anthropic()
+        self.client = anthropic.Anthropic(timeout=_CLIENT_TIMEOUT)
 
     def get_active_prompt(self) -> tuple[int, str]:
         with db_cursor() as cursor:
@@ -136,6 +148,7 @@ class BaseAgent(ABC):
             # regardless of model/max_tokens, so every agent uses it, not just the
             # large-budget ones. get_final_message() reassembles the same Message
             # shape .create() would have returned (.content, .usage, etc.).
+            logger.info("%s: calling %s ...", self.agent_id, self.model)
             with self.client.messages.stream(**params) as stream:
                 response = stream.get_final_message()
             raw_text = self.extract_text_block(response)
@@ -175,6 +188,14 @@ class BaseAgent(ABC):
             getattr(response.usage, 'cache_read_input_tokens', 0) if response else 0
         )
 
+        call_cost_usd = self._compute_cost(tokens_in, tokens_out, tokens_cached)
+        if error:
+            logger.error("%s: FAILED after %.0fs (%s) -- %s",
+                         self.agent_id, duration_ms / 1000, self.model, error[:200])
+        else:
+            logger.info("%s: done in %.0fs (%s, out=%d tokens, $%.4f)",
+                        self.agent_id, duration_ms / 1000, self.model, tokens_out, call_cost_usd)
+
         return AgentResult(
             agent_id=self.agent_id,
             model_id=self.model,
@@ -182,7 +203,7 @@ class BaseAgent(ABC):
             tokens_in=tokens_in,
             tokens_out=tokens_out,
             tokens_cached=tokens_cached,
-            call_cost_usd=self._compute_cost(tokens_in, tokens_out, tokens_cached),
+            call_cost_usd=call_cost_usd,
             duration_ms=duration_ms,
             output=output,
             error=error,

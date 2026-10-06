@@ -23,7 +23,36 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from forecaster.config import SecretsNotFoundError
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+# httpx logs one INFO line per API request (including each 401/429) -- pure noise
+# here; real failures surface through BaseAgent's own error handling.
+logging.getLogger("httpx").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
+
+
+def log_execution_cost(forecast_id: int, symbol: str) -> float:
+    """Log the estimated LLM cost of one forecast run (sum of llm_call_log.call_cost_usd)
+    and how many of its calls errored. BaseAgent swallows call failures, so "complete"
+    alone doesn't mean the calls worked -- a run where every call 401'd costs $0.00 and
+    would otherwise look like a success. Returns the cost; never raises."""
+    try:
+        from forecaster.db import db_cursor
+        with db_cursor() as cur:
+            cur.execute(
+                "SELECT COALESCE(SUM(call_cost_usd), 0), COUNT(*), "
+                "       COUNT(*) FILTER (WHERE error IS NOT NULL) "
+                "FROM llm_call_log WHERE forecast_id = %s",
+                (forecast_id,),
+            )
+            cost, calls, failed = cur.fetchone()
+    except Exception as exc:
+        logger.warning("%s: could not read execution cost (%s)", symbol, exc)
+        return 0.0
+    cost = float(cost)
+    logger.info("%s execution cost (est.) = $%.2f  (%d LLM calls)", symbol, cost, calls)
+    if failed:
+        logger.error("%s: %d of %d LLM calls failed -- see llm_call_log.error for forecast_id=%d",
+                     symbol, failed, calls, forecast_id)
+    return cost
 
 
 def parse_symbols(raw: str) -> list[str]:
@@ -149,6 +178,7 @@ def main() -> None:
         return
 
     errors = []
+    total_cost = 0.0
     for symbol in symbols:
         try:
             logger.info("Running pipeline for %s", symbol)
@@ -157,9 +187,13 @@ def main() -> None:
                 logger.info("%s skipped by triage gate", symbol)
             else:
                 logger.info("%s complete (forecast_id=%d)", symbol, forecast_id)
+                total_cost += log_execution_cost(forecast_id, symbol)
         except Exception as exc:
             logger.error("%s failed: %s", symbol, exc)
             errors.append(symbol)
+
+    if len(symbols) > 1:
+        logger.info("Execution cost (est.) = $%.2f across %d symbols", total_cost, len(symbols))
 
     if errors:
         logger.error("Failed symbols: %s", ", ".join(errors))

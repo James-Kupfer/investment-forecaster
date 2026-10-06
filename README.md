@@ -130,7 +130,7 @@ This project does **not** use a `.env` file for secrets, and secret *values* nev
 ```
 Secrets/
 ├── postgres.py      # postgres_user, postgres_password, dsn
-├── Anthropic.py      # ANTHROPIC_API_KEY = "sk-ant-..."
+├── inv_forecaster_key.py  # ANTHROPIC_API_KEY = "sk-ant-..."  (legacy name Anthropic.py also accepted)
 └── SEC.py            # SEC_EDGAR_USER_AGENT = "Your Name your@email.com"
 ```
 
