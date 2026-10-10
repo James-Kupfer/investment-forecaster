@@ -44,8 +44,9 @@ if (-not $SecretsDir) {
     exit 1
 }
 
-$PgSecretsFile = Join-Path $SecretsDir "postgres.py"
-$AnthropicFile = Join-Path $SecretsDir "Anthropic.py"
+$PgSecretsFile = Join-Path $SecretsDir "shared\postgres\role_investment_forecaster.py"
+$AnthropicFile = Join-Path $SecretsDir "projects\investment-forecaster\anthropic_key.py"
+$PgSecretsDir  = Split-Path $PgSecretsFile
 
 Write-Host "  Using Secrets folder: $SecretsDir"
 Write-Host ""
@@ -58,9 +59,9 @@ foreach ($f in @($PgSecretsFile, $AnthropicFile)) {
     }
 }
 
-$PgUser     = python -c "import sys; sys.path.insert(0, r'$SecretsDir'); from postgres import postgres_user; print(postgres_user)"
-$PgPassword = python -c "import sys; sys.path.insert(0, r'$SecretsDir'); from postgres import postgres_password; print(postgres_password)"
-$PgHost     = python -c "import sys; sys.path.insert(0, r'$SecretsDir'); from postgres import dsn; print(dsn)"
+$PgUser     = python -c "import sys; sys.path.insert(0, r'$PgSecretsDir'); from role_investment_forecaster import postgres_user; print(postgres_user)"
+$PgPassword = python -c "import sys; sys.path.insert(0, r'$PgSecretsDir'); from role_investment_forecaster import postgres_password; print(postgres_password)"
+$PgHost     = python -c "import sys; sys.path.insert(0, r'$PgSecretsDir'); from role_investment_forecaster import dsn; print(dsn)"
 
 $AnthropicContent = Get-Content $AnthropicFile -Raw
 if ($AnthropicContent -match "ANTHROPIC_API_KEY\s*=\s*'([^']+)'") {

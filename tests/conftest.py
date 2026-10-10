@@ -9,6 +9,7 @@ credentials as a LAST-resort search location: real files, where they exist, are
 found first and win, so a developer machine (and tests/test_db.py, which talks to
 the live database) keeps using the real ones.
 """
+import shutil
 import tempfile
 from pathlib import Path
 
@@ -29,6 +30,26 @@ def _ensure_secrets() -> None:
 
 
 _ensure_secrets()
+
+
+def _ensure_llm_config() -> None:
+    """BaseAgent resolves model aliases through forecaster/llm_config.toml, which is
+    git-ignored and shipped in daily by LLM_Config's distributor -- so a fresh checkout
+    or the CI runner has none, and a stale one raises too. When the real file can't be
+    loaded, point llm_config at a copy of the committed llm_mapping.toml (its source)."""
+    from forecaster import llm_config
+
+    try:
+        llm_config.load_models()
+        return
+    except llm_config.LLMConfigError:
+        pass
+    stub = Path(tempfile.mkdtemp(prefix="forecaster-test-llm-")) / "llm_config.toml"
+    shutil.copy(Path(__file__).resolve().parents[1] / "llm_mapping.toml", stub)
+    llm_config.CONFIG_FILE = stub
+
+
+_ensure_llm_config()
 
 # test_image_extractor.py is disabled: it loads "Technical Analysis/image_extractor.py"
 # at import time, and that folder is not in this repo, so collection of the whole

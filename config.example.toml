@@ -8,12 +8,14 @@
 # any by hand for local use.
 
 [secrets]
-# Folder(s) containing postgres.py, Anthropic.py, and SEC.py -- see
+# Folder(s) laid out as shared/postgres/role_investment_forecaster.py,
+# projects/investment-forecaster/anthropic_key.py and shared/sec/edgar_user_agent.py
+# (legacy flat postgres.py / Anthropic.py / SEC.py are also accepted) -- see
 # README.md's "Credentials" section for what each file must define. A single
 # string or a list of strings (for a machine that keeps secrets in more than
 # one place) both work; candidates are searched in order and the first file
 # found for each secret wins.
-override = "C:/Users/you/Secrets"
+override = "C:/Users/you/LLM_Config"
 
 [database]
 # Non-secret overrides only -- host, user, and password come from the

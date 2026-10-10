@@ -42,12 +42,12 @@ LLM Superforecaster — applies Tetlock superforecaster discipline to investment
   the whole point is that they need an actual filing read.
 - **Never edit a `prompt_registry` row in place** — deactivate the old one, insert a new versioned
   row. `update_prompt.py` enforces this; don't bypass it with direct SQL.
-- **Credentials go in the shared `Secrets` folder only — never in `.env`, code, or committed
-  config.** `Secrets` is shared across repos specifically to avoid every repo duplicating the same
+- **Credentials go in the shared `LLM_Config` folder only — never in `.env`, code, or committed
+  config.** `LLM_Config` is shared across repos specifically to avoid every repo duplicating the same
   password/API key.
 
 ## Agent Conventions
-- All LLM-calling agents subclass `BaseAgent` (`forecaster/agents/base.py`); set `agent_id` as a class attribute and implement `_parse_response()`. Do NOT set `model` on the agent class — `personas/model_config.py`'s `AGENT_MODELS` is the sole owner; `BaseAgent.__init__` raises if `agent_id` isn't listed there.
+- All LLM-calling agents subclass `BaseAgent` (`forecaster/agents/base.py`); set `agent_id` as a class attribute and implement `_parse_response()`. Do NOT set `model` on the agent class — `personas/model_config.py`'s `AGENT_MODELS` is the sole owner (values are aliases, resolved via `forecaster/llm_config.py` from the shared `llm_config.toml`); `BaseAgent.__init__` raises if `agent_id` isn't listed there.
 - Every agent's `_parse_response()` must extract text via `self.extract_text_block(response)`, never `response.content[0].text` directly — models with extended thinking enabled (e.g. `claude-sonnet-5`) return a `ThinkingBlock` first, which has no `.text` attribute.
 - `log_call()` must be called immediately after every API call — never batched; call failures must still be logged.
 - When an agent's evidence source can fall back (EDGAR miss → free-text `financials` field → training knowledge, e.g. `earnings.py`/`primary_source.py`), always label which one was used via a `data_source` field in the prompt/output — don't let a fallback masquerade as primary evidence in the stored rationale.
@@ -115,6 +115,22 @@ LLM Superforecaster — applies Tetlock superforecaster discipline to investment
   name) with a fresh token from `.../settings/actions/runners/new`, and confirm the runner shows
   Idle at `.../settings/actions/runners`. Don't chase this as a code problem — check runner
   registration status first whenever CI goes from working to `startup_failure` on every run.
+- **If CI fails during `pytest` *collection* (not a test body) with
+  `forecaster.config.SecretsNotFoundError: None of ['Anthropic.py', 'api_key.py'] found in any of
+  [...]`, the job itself ran fine — this is a missing file in the Secrets folder the runner reads,
+  not a code or workflow bug.** `forecaster/credentials.py`'s `_load()` runs at import time, and
+  `test_edgar_client.py`/`test_pipeline.py`/`test_sync_prompts.py` transitively import
+  `forecaster.db`/`forecaster.edgar_client`, so collection fails before any mocking in the test
+  bodies ever runs. If `postgres.py` resolves (the traceback gets past the DB-credentials call
+  before failing on Anthropic) then `SECRETS_DIRS` itself is correct — only the Anthropic key file
+  is missing from it. This happened on `JAMES-DESKTOP` some time between 2026-07-20 (run #170,
+  green) and 2026-08-01 (first red run of this kind), and was still broken as of the 2026-09-26 run
+  that bumped `actions/checkout` to 7.0.1 (unrelated to that commit — every push in between failed
+  identically). Fix: on `JAMES-DESKTOP`, restore `Anthropic.py` (or the CI-runner-account fallback
+  `api_key.py`) — defining `ANTHROPIC_API_KEY` — in the directory `FORECASTER_SECRETS_DIR` points
+  at, and confirm `SEC.py`/`sec_id.py` is present too (the traceback never reaches that check).
+  Never work around this by hardcoding a key or adding a `.env` fallback in the repo — that's
+  exactly what the Secrets-folder-only rule above exists to prevent.
 
 ## Environment
 No `.env` file is used for secrets — see `README.md`'s "Configuration"/"Credentials" sections for

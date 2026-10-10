@@ -6,84 +6,82 @@
 #
 # Listed in pipeline execution order (see
 # \.claude\plans\i-updated-the-list-wise-pnueli.md — Stages A-D).
-# Haiku is reserved for the mechanical technical agents (momentum, trend,
-# volume, tech_judge). Every agent making a judgement call runs on Sonnet 5
-# or Opus 5: BaseAgent.call() sets no `thinking` param, and Haiku 4.5 uses
-# classic extended thinking (off unless requested), so a Haiku agent does no
-# reasoning at all -- fine for reading an indicator, not for a judgement.
+# Values are LLM aliases (haiku | sonnet | opus | fable), resolved to model IDs by
+# forecaster.llm_config from the shared llm_config.toml that LLM_Config ships daily.
+# Never put a model ID here; move the floating alias in LLM_Config to move a tier.
 #
 # TriageAgent is not listed: it's a pure Python threshold gate with no LLM
 # call. PatternAgent was removed (dead code — never invoked by the pipeline).
 
-# For testing: "claude-haiku-4-5-20251001",
+# For testing: "haiku",
 
 AGENT_MODELS: dict[str, str] = {
  # --- Stage A: decompose (once) ---
  # Extracts up to 7 Critical/High-impact catalyst/risk sub-questions (each
  # resolvable within 12 months) from the position's thesis and risk
  # profile. Does not classify long/short — stance is an aggregation output.
- "question_definition": "claude-opus-5-5",
+ "question_definition": "opus",
 
  # --- Stage B: shared symbol-level evidence (once) ---
  # Macro analyst: builds a decision tree from VIX, DXY, rates, and sector
  # ETF signals; shared context for every sub-question.
- "macroq": "claude-sonnet-5-5",
+ "macroq": "haiku",
 
  # Symbol-level downside-floor backstop: base-rate risk floor, plus a
  # scale-aware judgment of whether the sub-question density found in
  # decomposition is unusual for a company of this size.
- "risk_judge": "claude-sonnet-5-5",
+ "risk_judge": "sonnet",
 
  # Financial evidence specialist: earnings trajectory, FCF quality,
  # beat/miss trend. Primary evidence for sub-questions tagged
  # evidence_source=earnings. [parallel with primary_source]
- "earnings": "claude-sonnet-5-5",
+ "earnings": "sonnet",
 
  # Primary-source evidence specialist: filings, transcripts, guidance.
  # Primary evidence for sub-questions tagged evidence_source=primary_source.
  # [parallel with earnings]
- "primary_source": "claude-sonnet-5-5",
+ "primary_source": "sonnet",
 
  # Technical analyst: RSI/MACD momentum regime. [parallel with trend, volume]
- "momentum": "claude-haiku-4-5-20251001",
+ "momentum": "haiku",
 
  # Technical analyst: moving-average alignment and ADX trend regime.
  # [parallel with momentum, volume]
- "trend": "claude-haiku-4-5-20251001",
+ "trend": "haiku",
 
  # Technical analyst: whether volume confirms or diverges from trend.
  # [parallel with momentum, trend]
- "volume": "claude-haiku-4-5-20251001",
+ "volume": "haiku",
 
  # Technical judge: synthesizes momentum/trend/volume into one verdict.
  # Primary evidence for sub-questions tagged evidence_source=technical.
- "tech_judge": "claude-haiku-4-5-20251001",
+ "tech_judge": "haiku",
 
  # --- Stage C: per-sub-question forecast (N <= 7, fanned out in parallel) ---
  # Superforecaster: forecasts ONE sub-question via inside view, outside
  # view, pre-mortem, reference class. Runs once per surviving sub-question.
- "elicitation": "claude-opus-5-5",
+ "elicitation": "opus",
 
  # Bias reviewer: devil's-advocate critique of one sub-question's
  # elicitation, scoped to that question only — never the whole thesis.
- "review": "claude-sonnet-5-5",
+ "review": "sonnet",
 
  # Probability calibrator: shrinkage, confidence interval, and rationale
  # for one sub-question's final calibrated probability.
- "confidence_judge": "claude-sonnet-5-5",
+ "confidence_judge": "haiku",
 
  # --- Stage D: aggregate (once) ---
  # Final decision agent: grades each sub-question's rationale quality,
  # proposes a bounded (+/-0.30) adjustment to the code-computed mechanical
  # expected-value score, and issues the buy/sell/hold/pass recommendation.
- "aggregation": "claude-opus-5-5",
+ "aggregation": "opus",
 }
 
 # Thinking effort (output_config.effort: low|medium|high|xhigh|max) for agents
 # that need it set explicitly. Agents not listed run at the model's own default
 # (Sonnet 5.5: high). Opus 5.5 defaults to medium -- one level below Opus 5 --
 # so its three agents are pinned to high to keep the reasoning depth they had.
-# Never list a Haiku agent: Haiku 4.5 rejects the effort parameter.
+# Never list a Haiku agent: Haiku rejects the effort parameter.
 AGENT_EFFORT: dict[str, str] = {
  "question_definition": "high",
  "elicitation": "high",

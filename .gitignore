@@ -222,3 +222,4 @@ config.toml
 CLAUDE.md
 /Technical Analysis
 /cost_report.csv
+forecaster/llm_config.toml

@@ -1,0 +1,24 @@
+# Shared LLM alias map.
+#
+# Consumers ask for an alias ("sonnet"); llm_config.resolve() returns the API
+# model ID below.  Change a floating alias here to move every consumer at once.
+# That is a behaviour change: thinking output, token budgets and output length
+# differ between model versions, so test a bump before committing it.
+#
+# Consumers that must not move should use a pinned alias instead.
+
+[models]
+# Floating aliases — the current default for each family.
+haiku  = "claude-haiku-5-5"
+sonnet = "claude-sonnet-5-5"
+opus   = "claude-opus-5-5"
+fable  = "claude-fable-5-1"
+
+# Pinned aliases — never repointed.
+"haiku-4.5"  = "claude-haiku-4-5-20251001"
+"haiku-5.5"  = "claude-haiku-5-5"
+"sonnet-4.6" = "claude-sonnet-4-6"
+"sonnet-5"   = "claude-sonnet-5"
+"sonnet-5.5" = "claude-sonnet-5-5"
+"opus-5.5"   = "claude-opus-5-5"
+"fable-5.1"  = "claude-fable-5-1"

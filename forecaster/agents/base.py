@@ -8,6 +8,7 @@ import anthropic
 import httpx
 
 import forecaster.credentials  # noqa: F401 (loads ANTHROPIC_API_KEY into os.environ)
+from forecaster import llm_config
 from forecaster.db import db_cursor
 
 logger = logging.getLogger(__name__)
@@ -24,14 +25,21 @@ _CLIENT_TIMEOUT = httpx.Timeout(connect=15.0, read=180.0, write=60.0, pool=60.0)
 # Rates are Anthropic's current published per-MTok prices; cached input is the
 # standard ~10%-of-input read rate.
 _PRICING: dict[str, tuple[float, float, float]] = {
-    'claude-sonnet-5':            (3.00, 15.00, 0.30),
+    'claude-sonnet-5':            (2.00, 10.00, 0.20),  # $2/$10 is the standard price (the $3/$15 step-up was cancelled)
     'claude-haiku-4-5-20251001':  (1.00,  5.00, 0.10),
     # Opus 5: $5 in / $25 out per MTok (was previously entered as $15/$75 —
     # ~3x too high, which overstated every logged Opus call cost).
-    'claude-opus-5':              (5.00, 25.00, 0.50),
-    # 5.5 generation: Opus $4 / $20, Sonnet $2 / $10, cache reads $0.20 for both.
+    'claude-opus-4-8':            (5.00, 25.00, 0.50),
+    # Per Anthropic's pricing page: cache reads are 5% of input on the 5.5 Sonnet/Opus tier.
+    'claude-sonnet-5-5':          (2.00, 10.00, 0.10),
     'claude-opus-5-5':            (4.00, 20.00, 0.20),
-    'claude-sonnet-5-5':          (2.00, 10.00, 0.20),
+    # Haiku 5.5 is priced by prompt length; this is the up-to-100k tier (see _LONG_PROMPT_PRICING).
+    'claude-haiku-5-5':           (0.10,  0.50, 0.01),
+}
+
+# model -> (prompt tokens above which a higher tier applies, that tier's rates)
+_LONG_PROMPT_PRICING: dict[str, tuple[int, tuple[float, float, float]]] = {
+    'claude-haiku-5-5': (100_000, (0.50, 2.50, 0.05)),
 }
 
 
@@ -76,7 +84,8 @@ class BaseAgent(ABC):
                 f'No model configured for agent_id "{self.agent_id}" in '
                 f'personas/model_config.py — add it before instantiating this agent.'
             )
-        self.model = AGENT_MODELS[self.agent_id]
+        # AGENT_MODELS holds aliases; the resolved API ID is what gets called, priced and logged.
+        self.model = llm_config.resolve(AGENT_MODELS[self.agent_id])
         self.client = anthropic.Anthropic(timeout=_CLIENT_TIMEOUT)
 
     def get_active_prompt(self) -> tuple[int, str]:
@@ -234,6 +243,12 @@ class BaseAgent(ABC):
         ...
 
     def _compute_cost(self, tokens_in: int, tokens_out: int, tokens_cached: int) -> float:
-        rates = _PRICING.get(self.model, (3.00, 15.00, 0.30))
+        rates = _PRICING.get(self.model)
+        long_tier = _LONG_PROMPT_PRICING.get(self.model)
+        if rates is not None and long_tier and tokens_in > long_tier[0]:
+            rates = long_tier[1]
+        if rates is None:
+            logger.warning('No pricing entry for %s in _PRICING; using default rates, so call_cost_usd is approximate.', self.model)
+            rates = (3.00, 15.00, 0.30)
         non_cached = max(0, tokens_in - tokens_cached)
         return (non_cached * rates[0] + tokens_out * rates[1] + tokens_cached * rates[2]) / 1_000_000
