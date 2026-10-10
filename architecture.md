@@ -284,7 +284,10 @@ Every LLM-calling agent subclasses this (`TriageAgent` doesn't — it makes no A
 **Pricing table** (`_PRICING`, `$ per MTok` as `(input, output, cached_input)`) — update this whenever a new model is added to `AGENT_MODELS`:
 - `claude-sonnet-5`: 3.00 / 15.00 / 0.30
 - `claude-haiku-4-5-20251001`: 1.00 / 5.00 / 0.10
-- `claude-opus-4-8`: 15.00 / 75.00 / 1.50
+- `claude-opus-4-8`: 5.00 / 25.00 / 0.50
+- `claude-sonnet-5-5`: 2.00 / 10.00 / 0.10
+- `claude-opus-5-5`: 4.00 / 20.00 / 0.20
+- `claude-haiku-5-5`: 0.10 / 0.50 / 0.01 (up to 100k-token prompts; 0.50 / 2.50 / 0.05 above)
 
 The active model per agent is defined in `personas/model_config.py` — check that file for the current assignment; it's been observed running all-Haiku during test phases with the intended production model commented out alongside it, so don't assume the docstrings above are the live config.
 
@@ -539,5 +542,5 @@ Prompts are database rows, not code. `personas/<agent>.md` files are the **sourc
 
 - **Add a new agent:** create `forecaster/agents/my_agent.py` (subclass `BaseAgent`, set `agent_id`, implement `_parse_response()`), create `personas/my_agent.md`, add an entry to `personas/model_config.py`'s `AGENT_MODELS`, add it to `seed_prompt_registry.py`'s agent list, wire it into `pipeline.py`.
 - **Add a new migration:** `migrations/NNN_description.sql` with the next sequential number, using `IF NOT EXISTS`/`ADD COLUMN IF NOT EXISTS` guards throughout. `run_migrations.py` picks it up automatically.
-- **Change a model:** edit `personas/model_config.py`'s `AGENT_MODELS` only; add pricing to `_PRICING` in `base.py` if it's a new model. Never set `model` on the agent class itself.
+- **Change a model:** `AGENT_MODELS` holds LLM *aliases* (haiku | sonnet | opus | fable). To move a tier to a new model, change the floating alias in `GitHub\LLM_Config\llm_mapping.toml` (shipped to `forecaster/llm_config.toml` daily by `distribute_llm_config.bat`); add pricing to `_PRICING` in `base.py` for the new model ID. Edit `AGENT_MODELS` only to re-tier an agent. Never set `model` on the agent class itself.
 - **Update a prompt:** edit the `.md` file, then `python scripts/update_prompt.py --agent <agent_id> --version <vX.Y>`.

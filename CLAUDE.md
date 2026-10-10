@@ -27,12 +27,12 @@ LLM Superforecaster — applies Tetlock superforecaster discipline to investment
   the whole point is that they need an actual filing read.
 - **Never edit a `prompt_registry` row in place** — deactivate the old one, insert a new versioned
   row. `update_prompt.py` enforces this; don't bypass it with direct SQL.
-- **Credentials go in the shared `Secrets` folder only — never in `.env`, code, or committed
-  config.** `Secrets` is shared across repos specifically to avoid every repo duplicating the same
+- **Credentials go in the shared `LLM_Config` folder only — never in `.env`, code, or committed
+  config.** `LLM_Config` is shared across repos specifically to avoid every repo duplicating the same
   password/API key.
 
 ## Agent Conventions
-- All LLM-calling agents subclass `BaseAgent` (`forecaster/agents/base.py`); set `agent_id` as a class attribute and implement `_parse_response()`. Do NOT set `model` on the agent class — `personas/model_config.py`'s `AGENT_MODELS` is the sole owner; `BaseAgent.__init__` raises if `agent_id` isn't listed there.
+- All LLM-calling agents subclass `BaseAgent` (`forecaster/agents/base.py`); set `agent_id` as a class attribute and implement `_parse_response()`. Do NOT set `model` on the agent class — `personas/model_config.py`'s `AGENT_MODELS` is the sole owner (values are aliases, resolved via `forecaster/llm_config.py` from the shared `llm_config.toml`); `BaseAgent.__init__` raises if `agent_id` isn't listed there.
 - Every agent's `_parse_response()` must extract text via `self.extract_text_block(response)`, never `response.content[0].text` directly — models with extended thinking enabled (e.g. `claude-sonnet-5`) return a `ThinkingBlock` first, which has no `.text` attribute.
 - `log_call()` must be called immediately after every API call — never batched; call failures must still be logged.
 - When an agent's evidence source can fall back (EDGAR miss → free-text `financials` field → training knowledge, e.g. `earnings.py`/`primary_source.py`), always label which one was used via a `data_source` field in the prompt/output — don't let a fallback masquerade as primary evidence in the stored rationale.

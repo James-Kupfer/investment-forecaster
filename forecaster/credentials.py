@@ -9,7 +9,9 @@ see forecaster/config.py), searched in order: some environments (e.g. a
 self-hosted CI runner on a different Windows profile) carry differently
 -named secret files (api_key.py/sec_id.py, SEC_USER_AGENT) instead of the
 interactive account's (Anthropic.py/SEC.py, SEC_EDGAR_USER_AGENT) -- both
-names are tried in every candidate directory.
+names are tried in every candidate directory. The first entry of each list is
+the LLM_Config layout (shared/<service>/..., projects/<repo>/...); the bare
+names are the legacy flat-folder layout.
 
 Loaded via importlib with an explicit file path (not sys.path + `import
 anthropic`) because Secrets\\Anthropic.py would otherwise shadow the real
@@ -49,15 +51,18 @@ def _find_module(filenames: list, module_name: str):
 
 
 def _load() -> None:
-    pg = _find_module(["postgres.py"], "_secrets_postgres")
+    pg = _find_module(["shared/postgres/role_investment_forecaster.py", "postgres.py"], "_secrets_postgres")
     os.environ.setdefault("DB_HOST", pg.dsn)
     os.environ.setdefault("DB_USER", pg.postgres_user)
     os.environ.setdefault("DB_PASSWORD", pg.postgres_password)
 
-    anth = _find_module(["Anthropic.py", "api_key.py"], "_secrets_anthropic")
+    anth = _find_module(
+        ["projects/investment-forecaster/anthropic_key.py", "Anthropic.py", "api_key.py"],
+        "_secrets_anthropic",
+    )
     os.environ.setdefault("ANTHROPIC_API_KEY", anth.ANTHROPIC_API_KEY)
 
-    sec = _find_module(["SEC.py", "sec_id.py"], "_secrets_sec")
+    sec = _find_module(["shared/sec/edgar_user_agent.py", "SEC.py", "sec_id.py"], "_secrets_sec")
     sec_agent = getattr(sec, "SEC_EDGAR_USER_AGENT", None) or getattr(sec, "SEC_USER_AGENT", None)
     os.environ.setdefault("SEC_EDGAR_USER_AGENT", sec_agent)
 
