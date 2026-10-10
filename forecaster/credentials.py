@@ -8,7 +8,7 @@ config.toml's [secrets] override, or the FORECASTER_SECRETS_DIR env var --
 see forecaster/config.py), searched in order: some environments (e.g. a
 self-hosted CI runner on a different Windows profile) carry differently
 -named secret files (api_key.py/sec_id.py, SEC_USER_AGENT) instead of the
-interactive account's (Anthropic.py/SEC.py, SEC_EDGAR_USER_AGENT) -- both
+interactive account's (inv_forecaster_key.py/SEC.py, SEC_EDGAR_USER_AGENT) -- both
 names are tried in every candidate directory. The first entry of each list is
 the LLM_Config layout (shared/<service>/..., projects/<repo>/...); the bare
 names are the legacy flat-folder layout.
@@ -56,11 +56,19 @@ def _load() -> None:
     os.environ.setdefault("DB_USER", pg.postgres_user)
     os.environ.setdefault("DB_PASSWORD", pg.postgres_password)
 
+    # First entry is the LLM_Config layout; inv_forecaster_key.py is this project's own
+    # key in the flat layout (investment-profile-builder has inv_profile_builder_key.py);
+    # Anthropic.py / api_key.py are the legacy and CI-runner names.
     anth = _find_module(
-        ["projects/investment-forecaster/anthropic_key.py", "Anthropic.py", "api_key.py"],
+        ["projects/investment-forecaster/anthropic_key.py", "inv_forecaster_key.py",
+         "Anthropic.py", "api_key.py"],
         "_secrets_anthropic",
     )
-    os.environ.setdefault("ANTHROPIC_API_KEY", anth.ANTHROPIC_API_KEY)
+    # Assigned, not setdefault: the Secrets file is the single source of truth for
+    # this key. With setdefault a stale ANTHROPIC_API_KEY left in the OS/user
+    # environment silently won over the file, producing 401s no matter what the
+    # file contained.
+    os.environ["ANTHROPIC_API_KEY"] = anth.ANTHROPIC_API_KEY
 
     sec = _find_module(["shared/sec/edgar_user_agent.py", "SEC.py", "sec_id.py"], "_secrets_sec")
     sec_agent = getattr(sec, "SEC_EDGAR_USER_AGENT", None) or getattr(sec, "SEC_USER_AGENT", None)

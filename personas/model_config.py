@@ -76,3 +76,14 @@ AGENT_MODELS: dict[str, str] = {
  # expected-value score, and issues the buy/sell/hold/pass recommendation.
  "aggregation": "opus",
 }
+
+# Thinking effort (output_config.effort: low|medium|high|xhigh|max) for agents
+# that need it set explicitly. Agents not listed run at the model's own default
+# (Sonnet 5.5: high). Opus 5.5 defaults to medium -- one level below Opus 5 --
+# so its three agents are pinned to high to keep the reasoning depth they had.
+# Never list a Haiku agent: Haiku rejects the effort parameter.
+AGENT_EFFORT: dict[str, str] = {
+ "question_definition": "high",
+ "elicitation": "high",
+ "aggregation": "high",
+}

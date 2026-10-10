@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from typing import Optional
 
 import anthropic
+import httpx
 
 import forecaster.credentials  # noqa: F401 (loads ANTHROPIC_API_KEY into os.environ)
 from forecaster import llm_config
@@ -12,13 +13,21 @@ from forecaster.db import db_cursor
 
 logger = logging.getLogger(__name__)
 
+# The SDK default is a flat 600s read timeout. For a streamed response that is the
+# longest allowed silence between chunks, so a dead connection sat for ~10 minutes
+# per attempt before the SDK's retry kicked in (three calls on AQMS each took ~17
+# minutes this way, which looked like a hang). A healthy stream sends data/pings
+# continuously, so a 180s gap means the connection is stalled, not that the model is
+# thinking. Total call length is unaffected -- only the silent gap is bounded.
+_CLIENT_TIMEOUT = httpx.Timeout(connect=15.0, read=180.0, write=60.0, pool=60.0)
+
 # (input_per_mtok, output_per_mtok, cached_input_per_mtok)
 # Rates are Anthropic's current published per-MTok prices; cached input is the
 # standard ~10%-of-input read rate.
 _PRICING: dict[str, tuple[float, float, float]] = {
     'claude-sonnet-5':            (2.00, 10.00, 0.20),  # $2/$10 is the standard price (the $3/$15 step-up was cancelled)
     'claude-haiku-4-5-20251001':  (1.00,  5.00, 0.10),
-    # Opus 4.8: $5 in / $25 out per MTok (was previously entered as $15/$75 —
+    # Opus 5: $5 in / $25 out per MTok (was previously entered as $15/$75 —
     # ~3x too high, which overstated every logged Opus call cost).
     'claude-opus-4-8':            (5.00, 25.00, 0.50),
     # Per Anthropic's pricing page: cache reads are 5% of input on the 5.5 Sonnet/Opus tier.
@@ -32,6 +41,16 @@ _PRICING: dict[str, tuple[float, float, float]] = {
 _LONG_PROMPT_PRICING: dict[str, tuple[int, tuple[float, float, float]]] = {
     'claude-haiku-5-5': (100_000, (0.50, 2.50, 0.05)),
 }
+
+
+# Single ceiling for every agent. `max_tokens` is a cap, not a reservation: you are
+# billed for tokens the model actually writes, and adaptive thinking does not spend
+# more just because the ceiling is higher. So there is no reason to tune this per
+# agent -- the only thing a tight cap buys is silent truncation, which has already
+# cost three agents a run. 50k sits under every assigned model's output limit
+# (Opus 5 and Sonnet 5: 128k; Haiku 4.5: 64k) and far above any observed usage
+# (highest ever recorded: 9,590 tokens).
+DEFAULT_MAX_TOKENS = 50_000
 
 
 @dataclass
@@ -67,7 +86,7 @@ class BaseAgent(ABC):
             )
         # AGENT_MODELS holds aliases; the resolved API ID is what gets called, priced and logged.
         self.model = llm_config.resolve(AGENT_MODELS[self.agent_id])
-        self.client = anthropic.Anthropic()
+        self.client = anthropic.Anthropic(timeout=_CLIENT_TIMEOUT)
 
     def get_active_prompt(self) -> tuple[int, str]:
         with db_cursor() as cursor:
@@ -100,7 +119,7 @@ class BaseAgent(ABC):
         self,
         messages: list,
         system: Optional[str] = None,
-        max_tokens: int = 1024,
+        max_tokens: int = DEFAULT_MAX_TOKENS,
         output_config: Optional[dict] = None,
     ) -> AgentResult:
         """output_config takes the Anthropic structured-outputs shape, e.g.
@@ -122,8 +141,15 @@ class BaseAgent(ABC):
             params: dict = {'model': self.model, 'max_tokens': max_tokens, 'messages': messages}
             if system:
                 params['system'] = system
-            if output_config:
-                params['output_config'] = output_config
+            # Effort is merged with any structured-output config the caller
+            # passes (both live under output_config); the caller's own keys win.
+            from personas.model_config import AGENT_EFFORT
+            effort = AGENT_EFFORT.get(self.agent_id)
+            if effort or output_config:
+                params['output_config'] = {
+                    **({'effort': effort} if effort else {}),
+                    **(output_config or {}),
+                }
             # Streaming, not .create() -- the SDK refuses non-streaming requests
             # it estimates could exceed 10 minutes (observed live once max_tokens
             # was raised on Opus: "Streaming is required for operations that may
@@ -131,6 +157,7 @@ class BaseAgent(ABC):
             # regardless of model/max_tokens, so every agent uses it, not just the
             # large-budget ones. get_final_message() reassembles the same Message
             # shape .create() would have returned (.content, .usage, etc.).
+            logger.info("%s: calling %s ...", self.agent_id, self.model)
             with self.client.messages.stream(**params) as stream:
                 response = stream.get_final_message()
             raw_text = self.extract_text_block(response)
@@ -170,6 +197,14 @@ class BaseAgent(ABC):
             getattr(response.usage, 'cache_read_input_tokens', 0) if response else 0
         )
 
+        call_cost_usd = self._compute_cost(tokens_in, tokens_out, tokens_cached)
+        if error:
+            logger.error("%s: FAILED after %.0fs (%s) -- %s",
+                         self.agent_id, duration_ms / 1000, self.model, error[:200])
+        else:
+            logger.info("%s: done in %.0fs (%s, out=%d tokens, $%.4f)",
+                        self.agent_id, duration_ms / 1000, self.model, tokens_out, call_cost_usd)
+
         return AgentResult(
             agent_id=self.agent_id,
             model_id=self.model,
@@ -177,7 +212,7 @@ class BaseAgent(ABC):
             tokens_in=tokens_in,
             tokens_out=tokens_out,
             tokens_cached=tokens_cached,
-            call_cost_usd=self._compute_cost(tokens_in, tokens_out, tokens_cached),
+            call_cost_usd=call_cost_usd,
             duration_ms=duration_ms,
             output=output,
             error=error,

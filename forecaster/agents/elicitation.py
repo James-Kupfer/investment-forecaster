@@ -43,10 +43,7 @@ class ElicitationAgent(BaseAgent):
                 ),
             }
         ]
-        # Now on Sonnet, whose reasoning draws from this same max_tokens pool
-        # (no separate thinking budget) -- observed up to ~4.6k on a real run,
-        # sized well above that for comfortable headroom.
-        result = self.call(messages, system=system_prompt, max_tokens=16000)
+        result = self.call(messages, system=system_prompt)
         self.log_call(result, forecast_id=forecast_id, macro_state_id=macro_state_id)
         update_forecast_question_columns(
             question_id,

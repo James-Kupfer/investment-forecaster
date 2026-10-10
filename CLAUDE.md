@@ -16,6 +16,21 @@ LLM Superforecaster — applies Tetlock superforecaster discipline to investment
   score. Both are stored (`mechanical_score` vs `adjusted_score`) so calibration review can tell
   which one was right. See `architecture.md#aggregation--from-score-to-recommendation` for the
   exact formulas before touching this file.
+- **`forecasts.recommendation_band` is derived from `recommendation`, never from `final_score`**
+  (`aggregation.py`'s `derive_recommendation_band`). It is a deterministic display refinement —
+  Strong Buy / Buy / Hold / Sell / Strong Sell / Pass — that splits only Buy and Sell by how far
+  `final_score` cleared the effective threshold. It must stay *subordinate*: `derive_recommendation`
+  returns the LLM's own label verbatim when valid, so the stored call and the score can legitimately
+  disagree (forecast 30/FNV: the model answered HOLD on a score that cleared the buy bar). Banding
+  off `final_score` directly would contradict the stored recommendation on exactly those rows. A NULL
+  `recommendation` must yield a NULL band, and `Hold`/`Pass` are never split.
+- **`forecasts.decision_summary` is additive to `decision_rationale`, never a replacement.**
+  `decision_rationale` is deliberately technical (mechanical_score, invq2_floor, conviction, question
+  indices by name) because it's the audit trail behind the two numeric scores that get independently
+  Brier-scored for calibration review — don't "simplify" it. `decision_summary` is a separate field,
+  written by the same `AggregationAgent` call, translating the finished call into a few paragraphs
+  for an experienced investor with no visibility into this system's internals. It must never cause
+  `decision_rationale` to be shortened, omitted, or contradicted.
 - **`positions.asymmetric_rating` (High/Medium/Low/No) is the only source for the asymmetry
   adjustment** — it supersedes the old `is_asymmetric` BOOLEAN column, whose boolean coercion in
   the portfolio-manager's `excel_sync.py` had been silently collapsing every real rating (including
@@ -58,14 +73,23 @@ LLM Superforecaster — applies Tetlock superforecaster discipline to investment
 - Every agent's `max_tokens` is set generously above any observed real usage — truncation is a
   silent-failure mode, not a loud one: `extract_json` returns whatever complete JSON object it can
   find, so a cut-off response either loses just the fields after the cutoff (if an earlier complete
-  object exists) or returns `{}` entirely (if nothing closes). Two agents (`risk_judge`,
-  `aggregation`) were caught truncating mid-response on real LIN runs before their budgets were
-  raised — one of them (`risk_judge`) had no recoverable earlier draft and silently lost its entire
-  output for that run.
-- Agents on `claude-sonnet-5`/`claude-opus-4-8` (`question_definition`, `macroq`, `risk_judge`,
-  `elicitation`, `review`, `aggregation` as currently configured) need extra headroom: no `thinking`
-  param is set in `BaseAgent.call()`, so any extended-reasoning tokens these models produce draw
-  from the same `max_tokens` pool as the visible output, not a separate budget.
+  object exists) or returns `{}` entirely (if nothing closes). Three agents (`risk_judge`,
+  `aggregation`, `primary_source`) have been caught truncating on real LIN runs — `risk_judge` had
+  no recoverable earlier draft and silently lost its entire output for that run. `max_tokens` is a
+  cap, not a reservation: you are billed for tokens actually emitted, so raising a budget costs
+  nothing until it is used. Size these generously and treat a cap within ~2x of observed maximum
+  output as under-budgeted. `BaseAgent.call()` now flags `stop_reason == 'max_tokens'`, but
+  detection is not headroom.
+- Every agent making a judgement call runs on `claude-sonnet-5` or `claude-opus-5`; `claude-haiku-4-5`
+  is reserved for the four mechanical technical agents (`momentum`, `trend`, `volume`, `tech_judge`).
+  This is deliberate and not just a cost tier: no `thinking` param is set in `BaseAgent.call()`, and
+  Haiku 4.5 uses classic extended thinking (off unless explicitly requested), so a Haiku agent
+  performs no reasoning at all. Sonnet 5 and Opus 5 have adaptive thinking on by default, and those
+  reasoning tokens draw from the same `max_tokens` pool as visible output — which is the other
+  reason those agents need extra headroom.
+- Sonnet 5 emits roughly **1.7–2.7x** more output than Haiku 4.5 for the same agent and prompt
+  (measured across six agents observed on both). When moving an agent from Haiku to Sonnet, scale its
+  `max_tokens` accordingly — the budget that was generous on Haiku will not be.
 - Opus was also observed, on the same live run, drafting a full JSON object, writing a
   self-correcting narrative aside ("...correcting to the required schema:"), then emitting a
   second complete object — effectively doubling total output tokens for a single call.

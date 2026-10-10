@@ -391,11 +391,13 @@ class TestAggregationAgent:
             "score_adjustment_rationale": "minor correlation discount",
             "recommendation": "Buy",
             "decision_rationale": "net positive expected impact",
+            "decision_summary": "This looks like a buy on strengthening fundamentals.",
             "confidence": "Medium",
         }))
         out = agent._parse_response(resp)
         assert out["recommendation"] == "Buy"
         assert out["question_grades"][0]["rationale_quality_score"] == 0.9
+        assert out["decision_summary"] == "This looks like a buy on strengthening fundamentals."
 
     def test_mechanical_score_all_catalysts_is_positive(self):
         from forecaster.agents.aggregation import AggregationAgent
@@ -617,6 +619,114 @@ class TestConviction:
         assert AggregationAgent.derive_recommendation(
             questions, 0.5, "Buy", total_evidence=total_evidence
         ) == "Buy"
+
+
+class TestRecommendationBand:
+    """recommendation_band is a display-only refinement of an already-settled
+    recommendation -- Strong Buy / Buy / Hold / Sell / Strong Sell / Pass --
+    splitting Buy and Sell by how far final_score cleared the effective threshold.
+
+    The load-bearing property is subordination: it reads `recommendation`, not
+    final_score, so it can only refine the stored call and never overturn it.
+    That matters because derive_recommendation returns the LLM's own label
+    verbatim when valid, so the two can legitimately disagree (forecast 30 / FNV:
+    the model answered HOLD on a score that cleared the buy bar, calling the
+    margin 'within measurement error'). Banding off final_score directly would
+    have contradicted the stored call on exactly those rows."""
+
+    def test_strong_buy_at_and_above_margin(self):
+        from forecaster.agents.aggregation import AggregationAgent
+        # base buy_threshold 0.35 + margin 0.20 -> Strong Buy at final_score >= 0.55
+        assert AggregationAgent.derive_recommendation_band("Buy", 0.55) == "Strong Buy"
+        assert AggregationAgent.derive_recommendation_band("Buy", 0.90) == "Strong Buy"
+
+    def test_plain_buy_just_below_margin(self):
+        """Boundary is >=, so a hair under the strong bar must stay a plain Buy."""
+        from forecaster.agents.aggregation import AggregationAgent
+        assert AggregationAgent.derive_recommendation_band("Buy", 0.5499) == "Buy"
+        assert AggregationAgent.derive_recommendation_band("Buy", 0.40) == "Buy"
+
+    def test_strong_sell_at_and_below_margin(self):
+        from forecaster.agents.aggregation import AggregationAgent
+        # base sell_threshold -0.35 - margin 0.20 -> Strong Sell at final_score <= -0.55
+        assert AggregationAgent.derive_recommendation_band("Sell", -0.55) == "Strong Sell"
+        assert AggregationAgent.derive_recommendation_band("Sell", -0.90) == "Strong Sell"
+
+    def test_plain_sell_just_above_margin(self):
+        from forecaster.agents.aggregation import AggregationAgent
+        assert AggregationAgent.derive_recommendation_band("Sell", -0.5499) == "Sell"
+        assert AggregationAgent.derive_recommendation_band("Sell", -0.40) == "Sell"
+
+    def test_hold_and_pass_are_not_split(self):
+        """There is no 'Strong Hold' -- Hold and Pass pass through untouched at
+        any score, including ones that would band Strong on the Buy/Sell path."""
+        from forecaster.agents.aggregation import AggregationAgent
+        assert AggregationAgent.derive_recommendation_band("Hold", 0.0) == "Hold"
+        assert AggregationAgent.derive_recommendation_band("Hold", 0.90) == "Hold"
+        assert AggregationAgent.derive_recommendation_band("Pass", 0.0) == "Pass"
+        assert AggregationAgent.derive_recommendation_band("Pass", -0.90) == "Pass"
+
+    def test_null_recommendation_yields_null_band(self):
+        """The never-fabricate path leaves recommendation NULL when the LLM gave
+        no usable answer. There is no call to refine, so the band is NULL too --
+        it must not invent one off final_score."""
+        from forecaster.agents.aggregation import AggregationAgent
+        assert AggregationAgent.derive_recommendation_band(None, 0.90) is None
+        assert AggregationAgent.derive_recommendation_band("", 0.90) is None
+        assert AggregationAgent.derive_recommendation_band("buy", 0.90) is None
+
+    def test_band_never_contradicts_a_disagreeing_llm_label(self):
+        """The FNV case, both directions: the band must follow the stored
+        recommendation even when final_score points somewhere else entirely."""
+        from forecaster.agents.aggregation import AggregationAgent
+        # model held despite a score that clears the buy bar -> still Hold, not Buy
+        assert AggregationAgent.derive_recommendation_band("Hold", 0.90) == "Hold"
+        # model bought despite a score nowhere near the bar -> Buy, and not Strong
+        assert AggregationAgent.derive_recommendation_band("Buy", 0.05) == "Buy"
+        # model sold on a positive score -> Sell, and not Strong
+        assert AggregationAgent.derive_recommendation_band("Sell", 0.20) == "Sell"
+
+    def test_band_honors_shifted_thresholds(self):
+        """The band rides on the asymmetry-shifted thresholds, so a convex-payoff
+        position reaches Strong Buy at a lower final_score -- consistent with its
+        lower buy_threshold rather than fighting it (mirrors
+        test_recommendation_honors_shifted_thresholds)."""
+        from forecaster.agents.aggregation import AggregationAgent
+        # 0.30 is a plain Buy against the base 0.35 bar (strong needs 0.55)...
+        assert AggregationAgent.derive_recommendation_band("Buy", 0.30) == "Buy"
+        # ...but Strong Buy for a High-asymmetry position whose bar shifted to 0.10
+        assert AggregationAgent.derive_recommendation_band(
+            "Buy", 0.30, buy_threshold=0.10, sell_threshold=-0.60
+        ) == "Strong Buy"
+        # sell side: the shift makes Strong Sell harder to reach, not easier
+        assert AggregationAgent.derive_recommendation_band("Sell", -0.60) == "Strong Sell"
+        assert AggregationAgent.derive_recommendation_band(
+            "Sell", -0.60, buy_threshold=0.10, sell_threshold=-0.60
+        ) == "Sell"
+
+    def test_exact_boundary_is_not_lost_to_float_error(self):
+        """Regression pin: 0.10 + 0.20 is 0.30000000000000004 in IEEE754, so an
+        exactly-0.30 final_score would miss a High-asymmetry position's own strong
+        bar by 1 ULP and band down to plain Buy. The bar is rounded to 4dp --
+        final_score's own stored precision -- to keep the boundary deterministic."""
+        from forecaster.agents.aggregation import AggregationAgent
+        assert 0.10 + 0.20 != 0.30          # the hazard this guards against
+        assert AggregationAgent.derive_recommendation_band(
+            "Buy", 0.30, buy_threshold=0.10, sell_threshold=-0.60
+        ) == "Strong Buy"
+        # symmetric hazard on the sell side: -0.60 - 0.20 == -0.8000000000000001
+        assert AggregationAgent.derive_recommendation_band(
+            "Sell", -0.80, buy_threshold=0.10, sell_threshold=-0.60
+        ) == "Strong Sell"
+
+    def test_margin_is_overridable(self):
+        """strong_margin is a prior pending calibration (like k / M_FLOOR), so it
+        is a parameter, not a hardcode -- retuning it must move the bar."""
+        from forecaster.agents.aggregation import AggregationAgent
+        assert AggregationAgent.derive_recommendation_band("Buy", 0.45) == "Buy"
+        assert AggregationAgent.derive_recommendation_band(
+            "Buy", 0.45, strong_margin=0.10
+        ) == "Strong Buy"
 
 
 # ---------------------------------------------------------------------------
